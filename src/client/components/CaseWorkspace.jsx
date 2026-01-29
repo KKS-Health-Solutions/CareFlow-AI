@@ -1,0 +1,714 @@
+import React, { useState, useEffect } from 'react';
+import { DischargeCaseService } from '../services/DischargeCaseService.js';
+import './CaseWorkspace.css';
+
+export default function CaseWorkspace() {
+  const [caseData, setCaseData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [userRole, setUserRole] = useState('nurse'); // This should come from user context
+  const [actionLoading, setActionLoading] = useState(false);
+  const [availableCases, setAvailableCases] = useState([]);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+
+  const service = new DischargeCaseService();
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const caseId = urlParams.get('sys_id');
+    
+    if (caseId) {
+      setSelectedCaseId(caseId);
+      loadCaseData(caseId);
+    } else {
+      // Load available cases for selection
+      loadAvailableCases();
+    }
+    
+    // In a real implementation, get user role from ServiceNow context
+    // setUserRole(window.NOW?.user?.roles?.[0] || 'nurse');
+  }, []);
+
+  const loadAvailableCases = async () => {
+    try {
+      setLoading(true);
+      const data = await service.getDashboardData();
+      setAvailableCases(data.cases || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load available cases');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCaseData = async (caseId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await service.getCase(caseId);
+      setCaseData(data);
+    } catch (err) {
+      setError(err.message);
+      setCaseData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCaseSelection = (caseId) => {
+    setSelectedCaseId(caseId);
+    loadCaseData(caseId);
+    // Update URL to include the selected case ID
+    const newUrl = `${window.location.pathname}?sys_id=${caseId}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+  };
+
+  const handleRoleAction = async (action, params = {}) => {
+    try {
+      setActionLoading(true);
+      let result;
+      const caseId = typeof caseData.case.sys_id === 'object' 
+        ? caseData.case.sys_id.value 
+        : caseData.case.sys_id;
+
+      const summaryId = caseData.summary ? 
+        (typeof caseData.summary.sys_id === 'object' 
+          ? caseData.summary.sys_id.value 
+          : caseData.summary.sys_id) 
+        : null;
+
+      switch (action) {
+        // Nursing actions
+        case 'markReadyForDischarge':
+          result = await service.markReadyForDischarge(caseId);
+          break;
+        case 'completeDischargeTasks':
+          result = await service.completeDischargeTasks(caseId);
+          break;
+          
+        // Doctor actions
+        case 'requestSummaryReview':
+          if (summaryId) {
+            result = await service.requestSummaryReview(summaryId);
+          }
+          break;
+        case 'approveSummary':
+          if (summaryId) {
+            result = await service.approveSummary(summaryId);
+          }
+          break;
+        case 'rejectSummary':
+          if (summaryId) {
+            const comment = prompt('Please provide a reason for rejection:');
+            if (comment) {
+              result = await service.rejectSummary(summaryId, comment);
+            }
+          }
+          break;
+          
+        // Pharmacy actions
+        case 'markMedsReviewed':
+          result = await service.markMedsReviewed(caseId);
+          break;
+        case 'markMedsDispensed':
+          result = await service.markMedsDispensed(caseId);
+          break;
+        case 'requestMedClarification':
+          const notes = prompt('Please provide clarification details:');
+          if (notes) {
+            result = await service.requestMedClarification(caseId, notes);
+          }
+          break;
+          
+        // Coordinator/Admin actions
+        case 'sendSummaryToGP':
+          const gpEmail = prompt('Enter GP email address:');
+          if (gpEmail && summaryId) {
+            result = await service.sendSummaryToGP(caseId, summaryId, gpEmail);
+          }
+          break;
+        case 'notifyPatient':
+          const patientEmail = prompt('Enter patient email address:');
+          if (patientEmail && summaryId) {
+            result = await service.notifyPatient(caseId, summaryId, patientEmail);
+          }
+          break;
+        case 'scheduleFollowUp':
+          const followUpDate = prompt('Enter follow-up date (YYYY-MM-DD):');
+          const followUpNotes = prompt('Enter follow-up notes:');
+          if (followUpDate) {
+            result = await service.scheduleFollowUp(caseId, followUpDate, followUpNotes || '');
+          }
+          break;
+        case 'sendFollowUpReminder':
+          const reminderEmail = prompt('Enter recipient email address:');
+          const recipientType = prompt('Enter recipient type (patient/gp):');
+          if (reminderEmail && recipientType) {
+            result = await service.sendFollowUpReminder(caseId, recipientType, reminderEmail);
+          }
+          break;
+        case 'retryFailedSend':
+          const retryEmail = prompt('Enter recipient email address:');
+          const retryType = prompt('Enter recipient type (patient/gp):');
+          if (retryEmail && retryType) {
+            result = await service.retryFailedSend(caseId, retryType, retryEmail);
+          }
+          break;
+          
+        default:
+          console.log(`Action not implemented: ${action}`);
+      }
+
+      // Show success message and refresh case data
+      if (result) {
+        if (result.message) {
+          alert(`Success: ${result.message}`);
+        }
+        await loadCaseData(caseId);
+      }
+    } catch (err) {
+      alert(`Error performing action: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '-';
+    const date = typeof dateValue === 'object' ? dateValue.display_value : dateValue;
+    return date ? new Date(date).toLocaleDateString() : '-';
+  };
+
+  const extractValue = (field) => {
+    return typeof field === 'object' ? field.display_value : field;
+  };
+
+  const getRoleActions = () => {
+    if (!caseData) return [];
+
+    const summaryStatus = extractValue(caseData.summary?.u_summary_status);
+    const dischargeStatus = extractValue(caseData.case.u_discharging_status);
+    const tasksComplete = extractValue(caseData.case.u_tasks_complete);
+
+    const actions = [];
+
+    if (userRole === 'nurse') {
+      if (dischargeStatus !== 'ready_for_discharge') {
+        actions.push({
+          label: 'Mark Ready for Discharge',
+          action: 'markReadyForDischarge',
+          variant: 'primary'
+        });
+      }
+      if (tasksComplete !== 'true') {
+        actions.push({
+          label: 'Complete Discharge Tasks',
+          action: 'completeDischargeTasks',
+          variant: 'success'
+        });
+      }
+    }
+
+    if (userRole === 'doctor') {
+      if (summaryStatus === 'draft') {
+        actions.push({
+          label: 'Request Summary Review',
+          action: 'requestSummaryReview',
+          variant: 'secondary'
+        });
+      }
+      if (summaryStatus === 'ready_for_review') {
+        actions.push(
+          {
+            label: 'Approve Summary',
+            action: 'approveSummary',
+            variant: 'success'
+          },
+          {
+            label: 'Reject Summary',
+            action: 'rejectSummary',
+            variant: 'danger'
+          }
+        );
+      }
+    }
+
+    if (userRole === 'pharmacy') {
+      actions.push(
+        {
+          label: 'Mark Meds Reviewed',
+          action: 'markMedsReviewed',
+          variant: 'primary'
+        },
+        {
+          label: 'Mark Dispensed',
+          action: 'markMedsDispensed',
+          variant: 'success'
+        },
+        {
+          label: 'Request Clarification',
+          action: 'requestMedClarification',
+          variant: 'warning'
+        }
+      );
+    }
+
+    if (userRole === 'coordinator' || userRole === 'admin') {
+      if (summaryStatus === 'clinician_approved') {
+        actions.push(
+          {
+            label: 'Send Summary to GP',
+            action: 'sendSummaryToGP',
+            variant: 'primary'
+          },
+          {
+            label: 'Notify Patient',
+            action: 'notifyPatient',
+            variant: 'secondary'
+          }
+        );
+      }
+      
+      actions.push(
+        {
+          label: 'Schedule Follow-Up',
+          action: 'scheduleFollowUp',
+          variant: 'info'
+        },
+        {
+          label: 'Send Follow-Up Reminder',
+          action: 'sendFollowUpReminder',
+          variant: 'info'
+        },
+        {
+          label: 'Retry Failed Send',
+          action: 'retryFailedSend',
+          variant: 'warning'
+        }
+      );
+    }
+
+    return actions;
+  };
+
+  // Role switching for demo purposes
+  const switchRole = (newRole) => {
+    setUserRole(newRole);
+  };
+
+  // If no case is selected, show case selection interface
+  if (!selectedCaseId && !loading) {
+    return (
+      <div className="case-workspace">
+        <div className="case-selection">
+          <div className="case-selection-header">
+            <h1>Select a Patient Discharge Case</h1>
+            <p>Choose a case to view details and perform role-based actions</p>
+          </div>
+          
+          <div className="case-selection-controls">
+            <button 
+              onClick={() => window.location.href = '/discharge_command_center.do'} 
+              className="action-button secondary"
+            >
+              ← Back to Dashboard
+            </button>
+            <button onClick={loadAvailableCases} className="action-button primary">
+              Refresh Cases
+            </button>
+          </div>
+
+          {availableCases.length > 0 ? (
+            <div className="case-selection-list">
+              {availableCases.map((caseItem, index) => {
+                const patientName = extractValue(caseItem.u_patient_name);
+                const hospitalNumber = extractValue(caseItem.u_hospital_number);
+                const ward = extractValue(caseItem.u_ward);
+                const dischargeStatus = extractValue(caseItem.u_discharging_status);
+                const caseId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
+
+                return (
+                  <div 
+                    key={index} 
+                    className="case-selection-item"
+                    onClick={() => handleCaseSelection(caseId)}
+                  >
+                    <div className="case-selection-content">
+                      <div className="case-selection-title">
+                        <strong>{patientName || 'Unknown Patient'}</strong>
+                        <span className="hospital-number">#{hospitalNumber || 'N/A'}</span>
+                      </div>
+                      <div className="case-selection-details">
+                        <span>Ward: {ward || '-'}</span>
+                        <span className={`status-badge status-${dischargeStatus}`}>
+                          {dischargeStatus || 'Unknown Status'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="case-selection-arrow">→</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="no-cases-message">
+              <h3>No discharge cases found</h3>
+              <p>There are currently no discharge cases available to view.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="case-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading case details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="case-error">
+        <h3>Error Loading Case</h3>
+        <p>{error}</p>
+        <div className="error-actions">
+          <button onClick={() => window.location.href = '/discharge_command_center.do'} className="action-button secondary">
+            ← Back to Dashboard
+          </button>
+          <button onClick={loadAvailableCases} className="action-button primary">
+            Select Different Case
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return <div className="case-error">No case data available</div>;
+  }
+
+  const roleActions = getRoleActions();
+
+  return (
+    <div className="case-workspace">
+      <div className="case-header">
+        <div className="case-header-content">
+          <div className="case-title">
+            <h1>{extractValue(caseData.case.u_patient_name) || 'Unknown Patient'}</h1>
+            <div className="case-subtitle">
+              Hospital #: {extractValue(caseData.case.u_hospital_number) || '-'} • 
+              Ward: {extractValue(caseData.case.u_ward) || '-'}
+            </div>
+          </div>
+          <div className="case-actions">
+            <button 
+              onClick={() => window.location.href = '/discharge_command_center.do'} 
+              className="action-button secondary"
+            >
+              ← Dashboard
+            </button>
+            {/* Role switcher for demo */}
+            <div className="role-switcher">
+              <select value={userRole} onChange={(e) => switchRole(e.target.value)} className="role-select">
+                <option value="nurse">Nurse</option>
+                <option value="doctor">Doctor</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="coordinator">Coordinator</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            {roleActions.map((action, index) => (
+              <button
+                key={index}
+                className={`action-button ${action.variant}`}
+                onClick={() => handleRoleAction(action.action)}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processing...' : action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="case-status-bar">
+          <div className="status-item">
+            <label>Discharge Status:</label>
+            <span className={`status-value status-${extractValue(caseData.case.u_discharging_status)}`}>
+              {extractValue(caseData.case.u_discharging_status) || '-'}
+            </span>
+          </div>
+          <div className="status-item">
+            <label>Discharge Date:</label>
+            <span>{formatDate(caseData.case.u_discharge_date)}</span>
+          </div>
+          <div className="status-item">
+            <label>Summary Status:</label>
+            <span className={`status-value status-${extractValue(caseData.summary?.u_summary_status)}`}>
+              {extractValue(caseData.summary?.u_summary_status) || 'Not Available'}
+            </span>
+          </div>
+          <div className="status-item">
+            <label>Follow-Up Due:</label>
+            <span>{formatDate(caseData.case.u_due_date)}</span>
+          </div>
+          <div className="status-item">
+            <label>Tasks Complete:</label>
+            <span className={`tasks-badge ${extractValue(caseData.case.u_tasks_complete) === 'true' ? 'complete' : 'incomplete'}`}>
+              {extractValue(caseData.case.u_tasks_complete) === 'true' ? '✓ Complete' : '⧗ Pending'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="case-tabs">
+        <div className="tab-nav">
+          {[
+            { id: 'overview', label: 'Overview' },
+            { id: 'tasks', label: 'Tasks' },
+            { id: 'summary', label: 'Discharge Summary' },
+            { id: 'pharmacy', label: 'Pharmacy' },
+            { id: 'followup', label: 'Follow-Up Plan' },
+            { id: 'communications', label: 'Communication Log' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="tab-content">
+          {activeTab === 'overview' && (
+            <div className="tab-panel">
+              <div className="overview-grid">
+                <div className="overview-section">
+                  <h3>Case Information</h3>
+                  <div className="field-group">
+                    <div className="field">
+                      <label>Patient Name:</label>
+                      <span>{extractValue(caseData.case.u_patient_name) || '-'}</span>
+                    </div>
+                    <div className="field">
+                      <label>Hospital Number:</label>
+                      <span>{extractValue(caseData.case.u_hospital_number) || '-'}</span>
+                    </div>
+                    <div className="field">
+                      <label>Ward:</label>
+                      <span>{extractValue(caseData.case.u_ward) || '-'}</span>
+                    </div>
+                    <div className="field">
+                      <label>Risk Level:</label>
+                      <span className={`risk-badge risk-${extractValue(caseData.case.u_risk_level)}`}>
+                        {extractValue(caseData.case.u_risk_level) || '-'}
+                      </span>
+                    </div>
+                    <div className="field">
+                      <label>Tasks Complete:</label>
+                      <span className={`tasks-badge ${extractValue(caseData.case.u_tasks_complete) === 'true' ? 'complete' : 'incomplete'}`}>
+                        {extractValue(caseData.case.u_tasks_complete) === 'true' ? '✓ Complete' : '⧗ Pending'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="overview-section">
+                  <h3>Status Timeline</h3>
+                  <div className="timeline">
+                    <div className="timeline-item">
+                      <span className="timeline-date">{formatDate(caseData.case.sys_created_on)}</span>
+                      <span className="timeline-event">Case Created</span>
+                    </div>
+                    {caseData.summary && (
+                      <div className="timeline-item">
+                        <span className="timeline-date">{formatDate(caseData.summary.sys_created_on)}</span>
+                        <span className="timeline-event">Summary Generated</span>
+                      </div>
+                    )}
+                    {caseData.summary?.u_approved_on && (
+                      <div className="timeline-item">
+                        <span className="timeline-date">{formatDate(caseData.summary.u_approved_on)}</span>
+                        <span className="timeline-event">Summary Approved</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'tasks' && (
+            <div className="tab-panel">
+              <h3>Related Discharge Tasks</h3>
+              {caseData.tasks.length > 0 ? (
+                <div className="tasks-list">
+                  {caseData.tasks.map((task, index) => (
+                    <div key={index} className="task-item">
+                      <div className="task-header">
+                        <span className="task-title">{extractValue(task.short_description) || 'Unnamed Task'}</span>
+                        <span className={`task-state state-${extractValue(task.state)}`}>
+                          {extractValue(task.state)}
+                        </span>
+                      </div>
+                      <div className="task-details">
+                        <span>Assigned: {extractValue(task.assigned_to) || 'Unassigned'}</span>
+                        <span>Due: {formatDate(task.due_date)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No tasks found for this case.</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'summary' && (
+            <div className="tab-panel">
+              <h3>Discharge Summary</h3>
+              {caseData.summary ? (
+                <div className="summary-content">
+                  <div className="summary-field">
+                    <label>Clinical Summary:</label>
+                    <div className="summary-text">{extractValue(caseData.summary.u_clinical_summary) || 'Not provided'}</div>
+                  </div>
+                  <div className="summary-field">
+                    <label>Diagnosis:</label>
+                    <div className="summary-text">{extractValue(caseData.summary.u_diagnosis) || 'Not provided'}</div>
+                  </div>
+                  <div className="summary-field">
+                    <label>Medications on Discharge:</label>
+                    <div className="summary-text">{extractValue(caseData.summary.u_medications_on_discharge) || 'Not provided'}</div>
+                  </div>
+                  <div className="summary-field">
+                    <label>Follow-up Instructions:</label>
+                    <div className="summary-text">{extractValue(caseData.summary.u_follow_up_instructions) || 'Not provided'}</div>
+                  </div>
+                  <div className="summary-field">
+                    <label>GP Notes:</label>
+                    <div className="summary-text">{extractValue(caseData.summary.u_gp_notes) || 'Not provided'}</div>
+                  </div>
+                </div>
+              ) : (
+                <p>No discharge summary available for this case.</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'pharmacy' && (
+            <div className="tab-panel">
+              <h3>Pharmacy Information</h3>
+              <div className="pharmacy-actions">
+                <h4>Medication Status</h4>
+                {caseData.summary?.u_medications_on_discharge ? (
+                  <div className="medication-list">
+                    <p><strong>Medications:</strong></p>
+                    <div className="medication-text">{extractValue(caseData.summary.u_medications_on_discharge)}</div>
+                  </div>
+                ) : (
+                  <p>No medication information available.</p>
+                )}
+                
+                {userRole === 'pharmacy' && (
+                  <div className="pharmacy-action-buttons">
+                    <button onClick={() => handleRoleAction('markMedsReviewed')} className="action-button primary">
+                      Mark Meds Reviewed
+                    </button>
+                    <button onClick={() => handleRoleAction('markMedsDispensed')} className="action-button success">
+                      Mark Dispensed
+                    </button>
+                    <button onClick={() => handleRoleAction('requestMedClarification')} className="action-button warning">
+                      Request Clarification
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'followup' && (
+            <div className="tab-panel">
+              <h3>Follow-Up Plan</h3>
+              <div className="followup-info">
+                <div className="field">
+                  <label>Follow-up Due Date:</label>
+                  <span>{formatDate(caseData.case.u_due_date)}</span>
+                </div>
+                {caseData.summary && (
+                  <div className="field">
+                    <label>Follow-up Instructions:</label>
+                    <div>{extractValue(caseData.summary.u_follow_up_instructions) || 'Not provided'}</div>
+                  </div>
+                )}
+                
+                {(userRole === 'coordinator' || userRole === 'admin') && (
+                  <div className="followup-actions">
+                    <button onClick={() => handleRoleAction('scheduleFollowUp')} className="action-button info">
+                      Schedule Follow-Up
+                    </button>
+                    <button onClick={() => handleRoleAction('sendFollowUpReminder')} className="action-button info">
+                      Send Follow-Up Reminder
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'communications' && (
+            <div className="tab-panel">
+              <h3>Communication Log</h3>
+              {caseData.communicationLog.length > 0 ? (
+                <div className="comm-log">
+                  {caseData.communicationLog.map((comm, index) => (
+                    <div key={index} className="comm-entry">
+                      <div className="comm-header">
+                        <span className="comm-type">{extractValue(comm.u_recipient_type)} - {extractValue(comm.u_delivery_channel)}</span>
+                        <span className="comm-date">{formatDate(comm.u_sent_on)}</span>
+                      </div>
+                      <div className="comm-details">
+                        <span className={`comm-status status-${extractValue(comm.u_delivery_status)}`}>
+                          {extractValue(comm.u_delivery_status)}
+                        </span>
+                        {extractValue(comm.u_recipient_address) && (
+                          <span>To: {extractValue(comm.u_recipient_address)}</span>
+                        )}
+                      </div>
+                      {extractValue(comm.u_error_mesage) && (
+                        <div className="comm-error">Error: {extractValue(comm.u_error_mesage)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No communication log entries found.</p>
+              )}
+              
+              {(userRole === 'coordinator' || userRole === 'admin') && (
+                <div className="comm-actions">
+                  <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
+                    Send Summary to GP
+                  </button>
+                  <button onClick={() => handleRoleAction('notifyPatient')} className="action-button secondary">
+                    Notify Patient
+                  </button>
+                  <button onClick={() => handleRoleAction('retryFailedSend')} className="action-button warning">
+                    Retry Failed Send
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

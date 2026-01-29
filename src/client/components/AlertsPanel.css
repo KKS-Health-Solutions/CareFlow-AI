@@ -1,0 +1,107 @@
+.alerts-panel {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  height: fit-content;
+}
+
+.alerts-header {
+  background-color: #dc3545;
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alerts-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.alert-count {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.alerts-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.no-alerts {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+}
+
+.no-alerts-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.alert-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.alert-item:hover {
+  background-color: #f8f9fa;
+}
+
+.alert-item:last-child {
+  border-bottom: none;
+}
+
+.alert-content {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.alert-message {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.alert-patient {
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.alert-ward {
+  opacity: 0.8;
+}
+
+.alert-date {
+  color: #999;
+  font-size: 12px;
+}
+
+.alert-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.alert-error {
+  border-left: 4px solid #dc3545;
+}
+
+.alert-warning {
+  border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+  border-left: 4px solid #17a2b8;
+}

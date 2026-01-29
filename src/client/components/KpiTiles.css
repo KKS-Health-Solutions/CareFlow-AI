@@ -1,0 +1,53 @@
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.kpi-tile {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: transform 0.2s ease;
+}
+
+.kpi-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.kpi-blue { border-left-color: #007bff; }
+.kpi-orange { border-left-color: #fd7e14; }
+.kpi-purple { border-left-color: #6f42c1; }
+.kpi-green { border-left-color: #28a745; }
+.kpi-teal { border-left-color: #20c997; }
+.kpi-red { border-left-color: #dc3545; }
+
+.kpi-icon {
+  font-size: 32px;
+  opacity: 0.8;
+}
+
+.kpi-content {
+  flex: 1;
+}
+
+.kpi-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.kpi-label {
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+}

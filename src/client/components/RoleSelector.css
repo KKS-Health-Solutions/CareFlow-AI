@@ -1,0 +1,215 @@
+.role-selector-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.role-selector-content {
+  max-width: 800px;
+  width: 100%;
+}
+
+.role-selector-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.logo-section {
+  margin-bottom: 30px;
+}
+
+.logo-section h1 {
+  color: white;
+  font-size: 48px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.tagline {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  margin: 0;
+  font-weight: 300;
+}
+
+.role-prompt h2 {
+  color: white;
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+}
+
+.role-prompt p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  margin: 0;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.role-card {
+  background: white;
+  border: none;
+  border-radius: 12px;
+  padding: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.role-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #ccc;
+  transition: background 0.3s ease;
+}
+
+.role-card.role-doctor::before {
+  background: linear-gradient(90deg, #8B4513, #A0522D);
+}
+
+.role-card.role-nurse::before {
+  background: linear-gradient(90deg, #198754, #20c997);
+}
+
+.role-card.role-pharmacy::before {
+  background: linear-gradient(90deg, #6f42c1, #8b5cf6);
+}
+
+.role-card.role-admin::before {
+  background: linear-gradient(90deg, #dc3545, #e74c3c);
+}
+
+.role-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.role-card.selected {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.role-card.role-doctor.selected::before {
+  background: linear-gradient(90deg, #8B4513, #A0522D);
+  height: 6px;
+}
+
+.role-card.role-nurse.selected::before {
+  background: linear-gradient(90deg, #198754, #20c997);
+  height: 6px;
+}
+
+.role-card.role-pharmacy.selected::before {
+  background: linear-gradient(90deg, #6f42c1, #8b5cf6);
+  height: 6px;
+}
+
+.role-card.role-admin.selected::before {
+  background: linear-gradient(90deg, #dc3545, #e74c3c);
+  height: 6px;
+}
+
+.role-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.role-content {
+  flex: 1;
+}
+
+.role-content h3 {
+  color: #333;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.role-content p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.role-arrow {
+  font-size: 24px;
+  color: #ccc;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.role-card:hover .role-arrow {
+  color: #666;
+  transform: translateX(5px);
+}
+
+.role-card.selected .role-arrow {
+  color: #333;
+  transform: translateX(5px);
+}
+
+.role-selector-footer {
+  text-align: center;
+}
+
+.mvp-notice {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .role-selector-container {
+    padding: 15px;
+  }
+  
+  .logo-section h1 {
+    font-size: 36px;
+  }
+  
+  .role-prompt h2 {
+    font-size: 24px;
+  }
+  
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .role-card {
+    padding: 20px;
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .role-icon {
+    font-size: 36px;
+  }
+  
+  .role-content h3 {
+    font-size: 20px;
+  }
+}

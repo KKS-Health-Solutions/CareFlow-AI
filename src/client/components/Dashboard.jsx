@@ -1,0 +1,259 @@
+import React, { useState, useEffect } from 'react';
+import { DischargeCaseService } from '../services/DischargeCaseService.js';
+import Navigation from './Navigation.jsx';
+import KpiTiles from './KpiTiles.jsx';
+import DischargeTable from './DischargeTable.jsx';
+import AlertsPanel from './AlertsPanel.jsx';
+import './Dashboard.css';
+
+export default function Dashboard({ userRole = 'nurse', onSwitchRole }) {
+  const [dashboardData, setDashboardData] = useState({ cases: [], stats: {} });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentView, setCurrentView] = useState('command-center');
+  const [filters, setFilters] = useState({
+    status: '',
+    ward: '',
+    assignedToMe: false,
+    overdue: false,
+    readyForDischarge: false,
+    followupDue: false
+  });
+
+  const service = new DischargeCaseService();
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  useEffect(() => {
+    loadViewData(currentView);
+  }, [currentView]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await service.getDashboardData();
+      setDashboardData(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadViewData = async (view) => {
+    try {
+      setLoading(true);
+      let data;
+      
+      switch (view) {
+        case 'command-center':
+          data = await service.getDashboardData();
+          break;
+        case 'my-tasks':
+          data = await service.getMyTasks();
+          break;
+        case 'doctor-signoff':
+          data = await service.getDoctorSignoffQueue();
+          break;
+        case 'nursing-checklist':
+          data = await service.getNursingQueue();
+          break;
+        case 'pharmacy-queue':
+          data = await service.getPharmacyQueue();
+          break;
+        case 'followups-due':
+          data = await service.getFollowupsDue();
+          break;
+        case 'failed-communications':
+          data = await service.getFailedCommunications();
+          break;
+        default:
+          data = await service.getDashboardData();
+      }
+      
+      setDashboardData(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNavigate = (viewId) => {
+    setCurrentView(viewId);
+    setFilters({
+      status: '',
+      ward: '',
+      assignedToMe: false,
+      overdue: false,
+      readyForDischarge: false,
+      followupDue: false
+    });
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const getViewTitle = () => {
+    const titles = {
+      'command-center': 'Discharge & Follow-Up Command Center',
+      'my-tasks': 'My Tasks',
+      'doctor-signoff': 'Doctor Sign-off Queue',
+      'nursing-checklist': 'Nursing Checklist Queue',
+      'pharmacy-queue': 'Pharmacy Queue',
+      'followups-due': 'Follow-Ups Due',
+      'failed-communications': 'Failed Communications'
+    };
+    return titles[currentView] || 'Dashboard';
+  };
+
+  const filteredCases = dashboardData.cases?.filter(caseItem => {
+    const dischargeStatus = typeof caseItem.u_discharging_status === 'object' 
+      ? caseItem.u_discharging_status.value 
+      : caseItem.u_discharging_status;
+    
+    const ward = typeof caseItem.u_ward === 'object' 
+      ? caseItem.u_ward.value 
+      : caseItem.u_ward;
+
+    const dueDate = typeof caseItem.u_due_date === 'object' 
+      ? caseItem.u_due_date.value 
+      : caseItem.u_due_date;
+
+    // Apply view-specific filters
+    if (currentView === 'nursing-checklist') {
+      if (dischargeStatus !== 'draft' && dischargeStatus !== 'ready_for_discharge') return false;
+    }
+
+    if (currentView === 'followups-due') {
+      const today = new Date();
+      const weekFromNow = new Date();
+      weekFromNow.setDate(today.getDate() + 7);
+      const due = new Date(dueDate);
+      if (due < today || due > weekFromNow) return false;
+    }
+
+    // Apply user filters
+    if (filters.status && dischargeStatus !== filters.status) return false;
+    if (filters.ward && ward !== filters.ward) return false;
+    if (filters.readyForDischarge && dischargeStatus !== 'ready_for_discharge') return false;
+    
+    if (filters.overdue) {
+      const today = new Date();
+      const due = new Date(dueDate);
+      if (due >= today) return false;
+    }
+    
+    if (filters.followupDue) {
+      const today = new Date();
+      const weekFromNow = new Date();
+      weekFromNow.setDate(today.getDate() + 7);
+      const due = new Date(dueDate);
+      if (due < today || due > weekFromNow) return false;
+    }
+
+    return true;
+  }) || [];
+
+  const getAlertCases = () => {
+    return dashboardData.cases?.filter(caseItem => {
+      const dischargeStatus = typeof caseItem.u_discharging_status === 'object' 
+        ? caseItem.u_discharging_status.value 
+        : caseItem.u_discharging_status;
+      
+      const dueDate = typeof caseItem.u_due_date === 'object' 
+        ? caseItem.u_due_date.value 
+        : caseItem.u_due_date;
+
+      const today = new Date();
+      const due = new Date(dueDate);
+      
+      return (
+        dischargeStatus === 'discharged' ||
+        due < today ||
+        dischargeStatus === 'ready_for_discharge'
+      );
+    }) || [];
+  };
+
+  if (loading) {
+    return (
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole={userRole} />
+        <div className="main-content">
+          <div className="dashboard-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading Dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole={userRole} />
+        <div className="main-content">
+          <div className="dashboard-error">
+            <h3>Error Loading Dashboard</h3>
+            <p>{error}</p>
+            <button onClick={loadDashboardData} className="retry-button">Retry</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-container">
+      <Navigation 
+        currentView={currentView} 
+        onNavigate={handleNavigate} 
+        userRole={userRole}
+        onSwitchRole={onSwitchRole}
+      />
+      <div className="main-content">
+        <div className="dashboard-container">
+          <div className="dashboard-header">
+            <h1>{getViewTitle()}</h1>
+            <div className="header-actions">
+              {onSwitchRole && (
+                <button onClick={onSwitchRole} className="switch-role-button">
+                  Switch Role
+                </button>
+              )}
+              <button onClick={() => loadViewData(currentView)} className="refresh-button">
+                Refresh Data
+              </button>
+            </div>
+          </div>
+          
+          {currentView === 'command-center' && (
+            <KpiTiles stats={dashboardData.stats || {}} />
+          )}
+          
+          <div className={`dashboard-main ${currentView !== 'command-center' ? 'full-width' : ''}`}>
+            <div className="dashboard-content">
+              <DischargeTable 
+                cases={filteredCases} 
+                onFilterChange={handleFilterChange}
+                filters={filters}
+                viewType={currentView}
+              />
+            </div>
+            
+            {currentView === 'command-center' && (
+              <div className="dashboard-sidebar">
+                <AlertsPanel alertCases={getAlertCases()} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
