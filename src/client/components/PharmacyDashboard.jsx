@@ -39,8 +39,17 @@ export default function PharmacyDashboard({ onSwitchRole }) {
   };
 
   const handleTaskClick = (task) => {
-    const taskId = typeof task.sys_id === 'object' ? task.sys_id.value : task.sys_id;
-    window.open(`/pharmacy_task.do?sys_id=${taskId}`, '_blank');
+    // Get the related discharge case ID from the task
+    const caseId = typeof task.u_discharge_case === 'object' 
+      ? task.u_discharge_case.value 
+      : task.u_discharge_case;
+    
+    if (caseId) {
+      // Use the existing case workspace page
+      window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank');
+    } else {
+      alert('No related discharge case found for this task.');
+    }
   };
 
   const filteredTasks = pharmacyData.tasks.filter(task => {

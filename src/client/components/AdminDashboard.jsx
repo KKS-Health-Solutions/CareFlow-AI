@@ -112,7 +112,8 @@ export default function AdminDashboard({ onSwitchRole }) {
 
   const handleCaseClick = (caseItem) => {
     const caseId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
-    window.open(`/admin_case_view.do?sys_id=${caseId}`, '_blank');
+    // Use the existing case workspace page
+    window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank');
   };
 
   const handleAdminAction = async (action, caseItem) => {
