@@ -18,7 +18,7 @@ CareFlow AI is a comprehensive healthcare management application built for Servi
 
 - ServiceNow instance with SDK access
 - Node.js (version 18 or higher)
-- ServiceNow SDK CLI
+- npm (comes with Node.js)
 
 ### Installation
 
@@ -35,30 +35,57 @@ CareFlow AI is a comprehensive healthcare management application built for Servi
    npm install
    ```
 
-3. **Configure ServiceNow connection**
+3. **Configure ServiceNow Authentication**
+
+   Add your ServiceNow instance credentials:
+
+   ```bash
+   npx now-sdk auth save <alias-name>
+   ```
+
+   You'll be prompted to enter:
+   - ServiceNow instance URL (e.g., `https://your-instance.service-now.com`)
+   - Username
+   - Password
+
+   Then set it as the default credential:
+
+   ```bash
+   npx now-sdk auth set-default <alias-name>
+   ```
+
+4. **Configure ServiceNow connection**
    - Ensure your `now.config.json` is properly configured with your ServiceNow instance details
    - Update the `scopeId` if deploying to a different instance
 
-4. **Build the application**
+5. **Build the application**
 
    ```bash
    npm run build
    ```
 
-5. **Deploy to ServiceNow**
+6. **Deploy to ServiceNow**
 
    ```bash
    npm run deploy
+   ```
+
+   Or use npx directly:
+
+   ```bash
+   npx now-sdk deploy
    ```
 
 ## Development
 
 ### Available Scripts
 
-- `npm run build` - Build the application for deployment
-- `npm run deploy` - Deploy the application to your ServiceNow instance
-- `npm run transform` - Transform the application files
-- `npm run types` - Generate TypeScript type definitions
+- `npm run build` or `npx now-sdk build` - Build the application for deployment
+- `npm run deploy` or `npx now-sdk deploy` - Deploy the application to your ServiceNow instance
+- `npm run transform` or `npx now-sdk transform` - Transform the application files
+- `npm run types` or `npx now-sdk dependencies` - Generate TypeScript type definitions
+
+**Note:** All ServiceNow SDK commands can be run using `npx now-sdk <command>` if you prefer direct CLI usage.
 
 ### Project Structure
 
