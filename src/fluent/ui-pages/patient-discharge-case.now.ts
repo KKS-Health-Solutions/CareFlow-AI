@@ -7,6 +7,15 @@ export const patient_discharge_case = UiPage({
   endpoint: 'patient_discharge_case.do',
   description: 'Patient Discharge Case workspace - Detailed case management with role-based actions',
   category: 'general',
-  html: Now.include('../../client/case-workspace.html'),
+  html: `<html>
+<head>
+  <title>Patient Discharge Case</title>
+  <sdk:now-ux-globals></sdk:now-ux-globals>
+  <script src="/uxasset/externals/global/case-main.jsdbx" type="module"></script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>`,
   direct: true
 });

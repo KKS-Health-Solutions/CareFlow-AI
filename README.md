@@ -40,18 +40,18 @@ CareFlow AI is a comprehensive healthcare management application built for Servi
    Add your ServiceNow instance credentials:
 
    ```bash
-   npx now-sdk auth save <alias-name>
+   npx now-sdk auth --add https://dev277501.service-now.com/
    ```
 
    You'll be prompted to enter:
-   - ServiceNow instance URL (e.g., `https://your-instance.service-now.com`)
+   - Type of authentication to use # choose basic
    - Username
    - Password
 
    Then set it as the default credential:
 
    ```bash
-   npx now-sdk auth set-default <alias-name>
+   npx now-sdk auth --use <alias-name>  
    ```
 
 4. **Configure ServiceNow connection**
