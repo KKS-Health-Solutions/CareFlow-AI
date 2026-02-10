@@ -44,7 +44,7 @@ CareFlow AI is a comprehensive healthcare management application built for Servi
    ```
 
    You'll be prompted to enter:
-   - Type of authentication to use # choose basic
+   - Type of authentication to use: choose basic
    - Username
    - Password
 
