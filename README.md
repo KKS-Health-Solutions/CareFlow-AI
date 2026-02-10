@@ -76,6 +76,11 @@ CareFlow AI is a comprehensive healthcare management application built for Servi
    npx now-sdk deploy
    ```
 
+7. **View the UI Pages**
+
+   You can view the ui pages at the endpoints:
+      ``https://dev277501.service-now.com/discharge_command_center.do`` and `https://dev277501.service-now.com/patient_discharge_case.do`
+
 ## Development
 
 ### Available Scripts
