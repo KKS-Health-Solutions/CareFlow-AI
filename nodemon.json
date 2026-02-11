@@ -1,0 +1,8 @@
+{
+    "watch": ["src"],
+    "ignore": ["target/**", "dist/**", "node_modules/**", "src/fluent/generated/**", "*.map"],
+    "ext": "jsx,js,css,html,ts",
+    "exec": "now-sdk build && now-sdk deploy",
+    "delay": "3000",
+    "verbose": true
+}
