@@ -1,0 +1,33 @@
+Created a Scripted REST API called Patient Discharge Case API
+Created an Access Control List (ACL) record called x_careflow_ai.api.default
+Created 4 new Roles: careflow_ai_admin, careflow_ai_doctor, careflow_ai_nurse
+and careflow_ai_pharmacy
+
+Endpoint to create patient discharge case record: /api/728557/careflow_ai_patient_discharge_case_api
+
+Used like so:
+
+POST /api/728557/careflow_ai_patient_discharge_case_api
+Content-Type: application/json
+Request Body:
+    {
+        "patient_name": "John Doe",
+        "hospital_number": "MRN-2026-0001",
+        "admission_reason": "Hip Replacement Recovery",
+        "ward": "General Surgery",
+        "risk_level": "moderate"
+    }
+
+Response:
+
+Code: 201 Created
+Response Body:
+    {
+    "result": {
+        "status": "success",
+        "message": "Patient discharge case created successfully",
+        "data": {
+        "case_sys_id": "89bd8f3cc3c7b2100fa7bd43e401315f"
+        }
+    }
+    }
