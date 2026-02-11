@@ -251,7 +251,7 @@ export default function AdminDashboard({ onSwitchRole }) {
     <div className="admin-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>⚙️ Admin Command Center</h1>
+          <h1 style={{ marginRight: '10px' }}>⚙️ Admin Command Center</h1>
           <div className="header-actions">
             <button onClick={() => onSwitchRole()} className="switch-role-button">
               Switch Role

@@ -143,7 +143,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     <div className="pharmacy-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>💊 Pharmacy Inbox</h1>
+          <h1 style={{ marginRight: '10px' }}>💊 Pharmacy Inbox</h1>
           <div className="header-actions">
             <button onClick={() => onSwitchRole()} className="switch-role-button">
               Switch Role
