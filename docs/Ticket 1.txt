@@ -1,13 +1,15 @@
+
+Summary of work done:
 Created a Scripted REST API called Patient Discharge Case API
 Created an Access Control List (ACL) record called x_careflow_ai.api.default
 Created 4 new Roles: careflow_ai_admin, careflow_ai_doctor, careflow_ai_nurse
 and careflow_ai_pharmacy
 
-Endpoint to create patient discharge case record: /api/728557/careflow_ai_patient_discharge_case_api
+Endpoint to create patient discharge case record: /api/728557/careflow_ai_patient_discharge_case_api/discharge_case
 
 Used like so:
 
-POST /api/728557/careflow_ai_patient_discharge_case_api
+POST /api/728557/careflow_ai_patient_discharge_case_api/discharge_case
 Content-Type: application/json
 Request Body:
     {
@@ -31,3 +33,4 @@ Response Body:
         }
     }
     }
+

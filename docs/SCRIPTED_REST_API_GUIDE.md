@@ -51,7 +51,7 @@ After submitting, ServiceNow will redirect you to the API record. Now you need t
 
 > ✅ Your full endpoint will be:
 > ```
-> POST /api/x_728557_care_flow_ui/careflow/discharge_case
+> POST /api/728557/careflow_ai_patient_discharge_case_api
 > ```
 
 ---
@@ -131,7 +131,7 @@ In the **Script** field of the Resource form, paste the following GlideRecord sc
 ## Step 4: Test the API with REST API Explorer
 
 1. Navigate to **All → REST API Explorer** in the platform
-2. In the top dropdown, select **Namespace**: `x_728557_care_flow_ui`
+2. In the top dropdown, select **Namespace**: `728557`
 3. Select **API Name**: `CareFlow Patient API`
 4. Select **API Version**: `(default)`
 5. Select the **POST /patient** resource
@@ -182,7 +182,7 @@ In the **Script** field of the Resource form, paste the following GlideRecord sc
 ### Request
 
 ```
-POST /api/x_728557_care_flow_ui/careflow/patient
+POST /api/728557/careflow_ai_patient_discharge_case_api
 Content-Type: application/json
 X-UserToken: <window.g_ck value>
 ```
@@ -192,11 +192,10 @@ X-UserToken: <window.g_ck value>
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `patient_name` | string | ✅ | Full patient name |
-| `mrn` | string | ✅ | Medical Record Number |
-| `diagnosis` | string | | Primary diagnosis |
-| `attending_physician` | string | | Attending physician name |
+| `hospital_number` | string | ✅ | Hospital Number |
+| `admission_reason` | string | | Primary diagnosis |
 | `ward` | string | | Hospital ward/unit |
-| `priority` | string | | `low`, `medium`, `high`, `critical` (default: `medium`) |
+| `risk_level` | string | | `low`, `moderate`, `high`, `critical` (default: `moderate`) |
 
 ### Response (201 Created)
 
@@ -228,7 +227,7 @@ X-UserToken: <window.g_ck value>
 In your React app, this API is called using `fetch()` with the same pattern as the rest of `DischargeCaseService.js`:
 
 ```javascript
-const response = await fetch('/api/x_728557_care_flow_ui/careflow/patient', {
+const response = await fetch('/api/728557/careflow_ai_patient_discharge_case_api', {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
@@ -263,7 +262,7 @@ window.open(
 |---|---|
 | **403 Forbidden** | Ensure the user has roles to access the API. Check ACLs on the custom tables. |
 | **401 Unauthorized** | Make sure `X-UserToken` header is set to `window.g_ck`. |
-| **404 Not Found** | Double-check the API namespace and relative path. The full URL should be `/api/x_728557_care_flow_ui/careflow/patient`. |
+| **404 Not Found** | Double-check the API namespace and relative path. The full URL should be `/api/728557/careflow_ai_patient_discharge_case_api`. |
 | **Table not found** | Verify the table name `u_cflow_patient_discharge_case` exists on your instance. |
 | **Fields not saving** | Column names are case-sensitive. Verify exact field names in the table dictionary. |
 

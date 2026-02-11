@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { DischargeCaseService } from '../services/DischargeCaseService.js';
 import './CreatePatientForm.css';
+
 
 export default function CreatePatientForm({ onBack, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -13,6 +15,8 @@ export default function CreatePatientForm({ onBack, onSubmit }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
+
+  const service = new DischargeCaseService();
 
   const wardOptions = [
     'General Medicine',
@@ -73,8 +77,7 @@ export default function CreatePatientForm({ onBack, onSubmit }) {
     setSubmitting(true);
 
     try {
-      // TODO: Wire up to API endpoint
-      // await DischargeCaseService.createPatient(formData);
+      await service.createDischargeCase(formData);
 
       if (onSubmit) {
         await onSubmit(formData);
