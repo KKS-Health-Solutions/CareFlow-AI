@@ -9,8 +9,13 @@ Endpoint to create patient discharge case record: /api/728557/careflow_ai_patien
 
 Used like so:
 
-POST /api/728557/careflow_ai_patient_discharge_case_api/discharge_case
-Content-Type: application/json
+POST https://dev277501.service-now.com/api/728557/careflow_ai_patient_discharge_case_api/discharge_case
+
+Headers:
+    Content-Type: application/json,
+    'Accept': 'application/json',
+    "X-UserToken": window.g_ck
+
 Request Body:
     {
         "patient_name": "John Doe",
