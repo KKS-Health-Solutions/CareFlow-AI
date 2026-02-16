@@ -158,7 +158,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
       {/* Cases Needing Doctor Action */}
       <div className="cases-section">
         <div className="cases-header">
-          <h2>Cases Needing Doctor Action</h2> 
+          <h2>Cases Needing Doctor Action</h2>
           <p className="cases-subtitle">Cases requiring summary review, approval, or follow-up planning</p>
         </div>
 
