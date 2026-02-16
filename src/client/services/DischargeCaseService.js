@@ -54,6 +54,7 @@ export class DischargeCaseService {
         return result;
       } catch (error) {
         console.error('Error creating discharge case:', error.message);
+        throw error;
       }
   } 
 
