@@ -4,10 +4,12 @@ import Dashboard from './Dashboard.jsx';
 import PharmacyDashboard from './PharmacyDashboard.jsx';
 import DoctorDashboard from './DoctorDashboard.jsx';
 import AdminDashboard from './AdminDashboard.jsx';
+import CreatePatientForm from './CreatePatientForm.jsx';
 
 export default function CareFlowApp() {
   const [selectedRole, setSelectedRole] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState('dashboard');
 
   useEffect(() => {
     // Check if there's a stored role in session storage
@@ -58,19 +60,28 @@ export default function CareFlowApp() {
     return <RoleSelector onRoleSelect={handleRoleSelect} />;
   }
 
+  // Render create patient form if navigated to
+  if (currentPage === 'create-patient') {
+    return (
+      <CreatePatientForm
+        onBack={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
   // Render role-specific dashboard
   switch (selectedRole) {
     case 'doctor':
-      return <DoctorDashboard onSwitchRole={handleSwitchRole} />;
+      return <DoctorDashboard onSwitchRole={handleSwitchRole} onCreatePatient={() => setCurrentPage('create-patient')} />;
     
     case 'nurse':
-      return <Dashboard userRole="nurse" onSwitchRole={handleSwitchRole} />;
+      return <Dashboard userRole="nurse" onSwitchRole={handleSwitchRole} onCreatePatient={() => setCurrentPage('create-patient')} />;
     
     case 'pharmacy':
-      return <PharmacyDashboard onSwitchRole={handleSwitchRole} />;
+      return <PharmacyDashboard onSwitchRole={handleSwitchRole} onCreatePatient={() => setCurrentPage('create-patient')} />;
     
     case 'admin':
-      return <AdminDashboard onSwitchRole={handleSwitchRole} />;
+      return <AdminDashboard onSwitchRole={handleSwitchRole} onCreatePatient={() => setCurrentPage('create-patient')} />;
     
     default:
       // Fallback to role selector

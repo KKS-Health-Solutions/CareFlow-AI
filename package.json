@@ -7,7 +7,8 @@
         "build": "now-sdk build",
         "deploy": "now-sdk deploy",
         "transform": "now-sdk transform",
-        "types": "now-sdk dependencies"
+        "types": "now-sdk dependencies",
+        "watch": "nodemon"
     },
     "devDependencies": {
         "@servicenow/sdk": "4.2.0",
