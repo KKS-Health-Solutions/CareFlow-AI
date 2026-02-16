@@ -34,6 +34,30 @@ export class DischargeCaseService {
     }
   }
 
+  async createDischargeCase(formData) {
+      try {
+        const response = await fetch('/api/728557/careflow_ai_patient_discharge_case_api/discharge_case',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              "X-UserToken": window.g_ck
+            },
+            body: JSON.stringify(formData)
+          
+          });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        return result;
+      } catch (error) {
+        console.error('Error creating discharge case:', error.message);
+        throw error;
+      }
+  } 
+
   // Pharmacy-specific methods
   async getPharmacyTasks() {
     try {

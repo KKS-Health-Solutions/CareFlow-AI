@@ -168,7 +168,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
         <div className="pharmacy-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>{currentView === 'my-tasks' ? '📋 My Tasks' : '💊 Pharmacy Inbox'}</h1>
+          <h1 style={{ marginRight: '10px' }}>💊 Pharmacy Inbox</h1>
           <div className="header-actions">
             <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh

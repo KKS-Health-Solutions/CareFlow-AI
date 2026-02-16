@@ -6,7 +6,7 @@ import DischargeTable from './DischargeTable.jsx';
 import AlertsPanel from './AlertsPanel.jsx';
 import './Dashboard.css';
 
-export default function Dashboard({ userRole = 'nurse', onSwitchRole }) {
+export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePatient }) {
   const [dashboardData, setDashboardData] = useState({ cases: [], stats: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -221,6 +221,11 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole }) {
           <div className="dashboard-header">
             <h1>{getViewTitle()}</h1>
             <div className="header-actions">
+              {onCreatePatient && (
+                <button onClick={onCreatePatient} className="create-patient-button">
+                  + Create Patient
+                </button>
+              )}
               {onSwitchRole && (
                 <button onClick={onSwitchRole} className="switch-role-button">
                   Switch Role

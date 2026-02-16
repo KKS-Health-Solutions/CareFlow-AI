@@ -143,7 +143,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
         <div className="doctor-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>{currentView === 'my-tasks' ? '📋 My Tasks' : '👨‍⚕️ Doctor Sign-off'}</h1>
+          <h1 style={{ marginRight: '10px' }}>👨‍⚕️ Doctor Sign-off</h1>
           <div className="header-actions">
             <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
