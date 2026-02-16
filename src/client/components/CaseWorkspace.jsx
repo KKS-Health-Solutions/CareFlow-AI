@@ -11,6 +11,8 @@ export default function CaseWorkspace() {
   const [actionLoading, setActionLoading] = useState(false);
   const [availableCases, setAvailableCases] = useState([]);
   const [selectedCaseId, setSelectedCaseId] = useState('');
+  // Per-role task completion summary: { doctor: {total,open,complete}, nurse: {...}, pharmacy: {...} }
+  const [taskSummaryByRole, setTaskSummaryByRole] = useState(null);
 
   const service = new DischargeCaseService();
 
@@ -49,6 +51,13 @@ export default function CaseWorkspace() {
       setError(null);
       const data = await service.getCase(caseId);
       setCaseData(data);
+      // Load per-role task summary alongside case data
+      try {
+        const summary = await service.getTaskSummaryByRole(caseId);
+        setTaskSummaryByRole(summary);
+      } catch (summaryErr) {
+        console.warn('Could not load task summary by role:', summaryErr);
+      }
     } catch (err) {
       setError(err.message);
       setCaseData(null);
@@ -79,16 +88,77 @@ export default function CaseWorkspace() {
           : caseData.summary.sys_id) 
         : null;
 
+      /* ============================================
+         SWITCH CASE TEMPLATE PATTERNS
+         ============================================
+         
+         Pattern 1: Simple action (no user input)
+         -----------------------------------------
+         case 'actionName':
+           result = await service.methodName(caseId);
+           break;
+         
+         Pattern 2: Action with user input
+         -----------------------------------------
+         case 'actionWithInput':
+           const userInput = prompt('Prompt message:');
+           if (userInput) {
+             result = await service.methodName(caseId, userInput);
+           }
+           break;
+         
+         Pattern 3: Action requiring summary
+         -----------------------------------------
+         case 'summaryAction':
+           if (summaryId) {
+             result = await service.methodName(summaryId);
+           }
+           break;
+         
+         Pattern 4: Action with multiple inputs
+         -----------------------------------------
+         case 'multiInputAction':
+           const input1 = prompt('First input:');
+           const input2 = prompt('Second input:');
+           if (input1 && input2) {
+             result = await service.methodName(caseId, input1, input2);
+           }
+           break;
+         
+         Pattern 5: Action with both caseId and summaryId
+         -----------------------------------------
+         case 'complexAction':
+           const userInput = prompt('Enter details:');
+           if (userInput && summaryId) {
+             result = await service.methodName(caseId, summaryId, userInput);
+           }
+           break;
+      ============================================ */
+
       switch (action) {
-        // Nursing actions
+        // ====================
+        // NURSING ACTIONS
+        // ====================
         case 'markReadyForDischarge':
           result = await service.markReadyForDischarge(caseId);
           break;
-        case 'completeDischargeTasks':
-          result = await service.completeDischargeTasks(caseId);
+        // OLD: completeDischargeTasks completed ALL tasks regardless of role.
+        // REPLACED with 3 per-role actions that call the server-side
+        // DischargeTaskService.completeTasksForRole() via REST API.
+        // Server enforces RBAC — returns 403 if user lacks the role.
+        case 'completeNurseTasks':
+          result = await service.completeTasksForRole(caseId, 'nurse');
+          break;
+        case 'completeDoctorTasks':
+          result = await service.completeTasksForRole(caseId, 'doctor');
+          break;
+        case 'completePharmacyTasks':
+          result = await service.completeTasksForRole(caseId, 'pharmacy');
           break;
           
-        // Doctor actions
+        // ====================
+        // DOCTOR ACTIONS
+        // ====================
         case 'requestSummaryReview':
           if (summaryId) {
             result = await service.requestSummaryReview(summaryId);
@@ -108,7 +178,9 @@ export default function CaseWorkspace() {
           }
           break;
           
-        // Pharmacy actions
+        // ====================
+        // PHARMACY ACTIONS
+        // ====================
         case 'markMedsReviewed':
           result = await service.markMedsReviewed(caseId);
           break;
@@ -122,7 +194,9 @@ export default function CaseWorkspace() {
           }
           break;
           
-        // Coordinator/Admin actions
+        // ====================
+        // COORDINATOR/ADMIN ACTIONS
+        // ====================
         case 'sendSummaryToGP':
           const gpEmail = prompt('Enter GP email address:');
           if (gpEmail && summaryId) {
@@ -157,6 +231,9 @@ export default function CaseWorkspace() {
           }
           break;
           
+        // ====================
+        // DEFAULT HANDLER
+        // ====================
         default:
           console.log(`Action not implemented: ${action}`);
       }
@@ -194,18 +271,37 @@ export default function CaseWorkspace() {
 
     const actions = [];
 
+    // ─── Per-role "Mark MY tasks complete" buttons ───────────────
+    // Each role only sees their own button. Admins see all three.
+    // Server-side RBAC is the real enforcement; UI hiding is courtesy.
+    const isAdmin = userRole === 'admin';
+    const nurseSummary = taskSummaryByRole?.nurse;
+    const doctorSummary = taskSummaryByRole?.doctor;
+    const pharmacySummary = taskSummaryByRole?.pharmacy;
+
+    // Helper: normalize status string for comparison (handles display_value casing)
+    const isReadyForDischarge = dischargeStatus && 
+      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'ready_for_discharge';
+
+    // If the case is already discharged, hide task-completion and
+    // "Mark Ready for Discharge" buttons for ALL roles.
+    const isDischarged = dischargeStatus &&
+      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
+
     if (userRole === 'nurse') {
-      if (dischargeStatus !== 'ready_for_discharge') {
+      // Only show "Mark Ready for Discharge" if NOT already ready and NOT discharged
+      if (!isReadyForDischarge && !isDischarged) {
         actions.push({
           label: 'Mark Ready for Discharge',
           action: 'markReadyForDischarge',
           variant: 'primary'
         });
       }
-      if (tasksComplete !== 'true') {
+      // Only show if there are open nurse tasks and case is NOT discharged
+      if (!isDischarged && (!nurseSummary || nurseSummary.open > 0)) {
         actions.push({
-          label: 'Complete Discharge Tasks',
-          action: 'completeDischargeTasks',
+          label: `Nurse: Mark my tasks complete${nurseSummary ? ` (${nurseSummary.open})` : ''}`,
+          action: 'completeNurseTasks',
           variant: 'success'
         });
       }
@@ -233,29 +329,57 @@ export default function CaseWorkspace() {
           }
         );
       }
+      // Only show if there are open doctor tasks and case is NOT discharged
+      if (!isDischarged && (!doctorSummary || doctorSummary.open > 0)) {
+        actions.push({
+          label: `Doctor: Mark my tasks complete${doctorSummary ? ` (${doctorSummary.open})` : ''}`,
+          action: 'completeDoctorTasks',
+          variant: 'success'
+        });
+      }
     }
 
     if (userRole === 'pharmacy') {
-      actions.push(
-        {
-          label: 'Mark Meds Reviewed',
-          action: 'markMedsReviewed',
-          variant: 'primary'
-        },
-        {
-          label: 'Mark Dispensed',
-          action: 'markMedsDispensed',
+      if (!isDischarged) {
+        actions.push(
+          {
+            label: 'Mark Meds Reviewed',
+            action: 'markMedsReviewed',
+            variant: 'primary'
+          },
+          {
+            label: 'Mark Dispensed',
+            action: 'markMedsDispensed',
+            variant: 'success'
+          },
+          {
+            label: 'Request Clarification',
+            action: 'requestMedClarification',
+            variant: 'warning'
+          }
+        );
+      }
+      // Only show if there are open pharmacy tasks and case is NOT discharged
+      if (!isDischarged && (!pharmacySummary || pharmacySummary.open > 0)) {
+        actions.push({
+          label: `Pharmacy: Mark my tasks complete${pharmacySummary ? ` (${pharmacySummary.open})` : ''}`,
+          action: 'completePharmacyTasks',
           variant: 'success'
-        },
-        {
-          label: 'Request Clarification',
-          action: 'requestMedClarification',
-          variant: 'warning'
-        }
-      );
+        });
+      }
     }
 
-    if (userRole === 'coordinator' || userRole === 'admin') {
+    // Admin sees coordinator-level actions but NOT per-role task-complete
+    // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
+    if (userRole === 'admin') {
+      // Admin can still mark ready for discharge if not already done and NOT discharged
+      if (!isReadyForDischarge && !isDischarged) {
+        actions.push({
+          label: 'Mark Ready for Discharge',
+          action: 'markReadyForDischarge',
+          variant: 'primary'
+        });
+      }
       if (summaryStatus === 'clinician_approved') {
         actions.push(
           {
@@ -419,7 +543,6 @@ export default function CaseWorkspace() {
                 <option value="nurse">Nurse</option>
                 <option value="doctor">Doctor</option>
                 <option value="pharmacy">Pharmacy</option>
-                <option value="coordinator">Coordinator</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
@@ -548,6 +671,41 @@ export default function CaseWorkspace() {
           {activeTab === 'tasks' && (
             <div className="tab-panel">
               <h3>Related Discharge Tasks</h3>
+
+              {/* ─── Per-Role Task Summary Tiles ─── */}
+              {taskSummaryByRole && (
+                <div className="task-summary-by-role">
+                  {['nurse', 'doctor', 'pharmacy'].map(role => {
+                    const s = taskSummaryByRole[role];
+                    if (!s || s.total === 0) return null;
+                    const allDone = s.open === 0;
+                    return (
+                      <div key={role} className={`role-task-tile ${allDone ? 'complete' : 'pending'}`}>
+                        <div className="role-task-tile-header">
+                          <strong>{role.charAt(0).toUpperCase() + role.slice(1)}</strong>
+                          <span className={`tasks-badge ${allDone ? 'complete' : 'incomplete'}`}>
+                            {allDone ? '\u2713 All Done' : `${s.open} open`}
+                          </span>
+                        </div>
+                        <div className="role-task-tile-body">
+                          <span>{s.complete}/{s.total} complete</span>
+                          {!allDone && (userRole === role || userRole === 'admin') && (
+                            <button
+                              className="action-button success small"
+                              onClick={() => handleRoleAction(`complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`)}
+                              disabled={actionLoading}
+                            >
+                              {actionLoading ? 'Processing...' : `Mark ${role} tasks complete`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ─── Individual Task List ─── */}
               {caseData.tasks.length > 0 ? (
                 <div className="tasks-list">
                   {caseData.tasks.map((task, index) => (
@@ -561,6 +719,11 @@ export default function CaseWorkspace() {
                       <div className="task-details">
                         <span>Assigned: {extractValue(task.assigned_to) || 'Unassigned'}</span>
                         <span>Due: {formatDate(task.due_date)}</span>
+                        {extractValue(task.u_provider_role) && (
+                          <span className={`role-badge role-${extractValue(task.u_provider_role)}`}>
+                            {extractValue(task.u_provider_role)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -649,7 +812,7 @@ export default function CaseWorkspace() {
                   </div>
                 )}
                 
-                {(userRole === 'coordinator' || userRole === 'admin') && (
+                {userRole === 'admin' && (
                   <div className="followup-actions">
                     <button onClick={() => handleRoleAction('scheduleFollowUp')} className="action-button info">
                       Schedule Follow-Up
@@ -692,7 +855,7 @@ export default function CaseWorkspace() {
                 <p>No communication log entries found.</p>
               )}
               
-              {(userRole === 'coordinator' || userRole === 'admin') && (
+              {userRole === 'admin' && (
                 <div className="comm-actions">
                   <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
                     Send Summary to GP

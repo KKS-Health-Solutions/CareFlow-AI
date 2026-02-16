@@ -45,6 +45,18 @@ declare global {
                         table: 'sys_ui_page'
                         id: '1b5a01f1935f46589adfbdc7fc24c3b8'
                     }
+                    src_server_ACL_AND_DEPLOYMENT_js: {
+                        table: 'sys_module'
+                        id: 'fef6d0af363c475282e91c851db3fb18'
+                    }
+                    src_server_DischargeTaskAPI_js: {
+                        table: 'sys_module'
+                        id: '191c2e8f556642869d905dbca9c09a19'
+                    }
+                    src_server_DischargeTaskService_js: {
+                        table: 'sys_module'
+                        id: 'af1837d11fec4b9db01d85a35362faa0'
+                    }
                 }
             }
         }

@@ -12,6 +12,12 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             label: 'Pharmacy Inbox',
             icon: '💊',
             roles: ['pharmacy']
+          },
+          {
+            id: 'my-tasks',
+            label: 'My Tasks',
+            icon: '📋',
+            roles: ['pharmacy']
           }
         ];
       
@@ -21,6 +27,12 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             id: 'doctor-signoff',
             label: 'Sign-off Queue',
             icon: '👨‍⚕️',
+            roles: ['doctor']
+          },
+          {
+            id: 'my-tasks',
+            label: 'My Tasks',
+            icon: '📋',
             roles: ['doctor']
           }
         ];
@@ -37,6 +49,12 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             id: 'failed-communications',
             label: 'Failed Communications',
             icon: '⚠️',
+            roles: ['admin']
+          },
+          {
+            id: 'my-tasks',
+            label: 'My Tasks',
+            icon: '📋',
             roles: ['admin']
           }
         ];
