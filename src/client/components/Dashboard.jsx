@@ -52,7 +52,7 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
           data = await service.getDashboardData();
           break;
         case 'my-tasks':
-          data = await service.getMyTasks();
+          data = await service.getMyTasks(userRole);
           break;
         case 'doctor-signoff':
           data = await service.getDoctorSignoffQueue();

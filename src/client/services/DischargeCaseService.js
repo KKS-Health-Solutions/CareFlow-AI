@@ -206,36 +206,63 @@ export class DischargeCaseService {
     'careflow_admin':    'admin'
   };
 
+  static USER_ID_BY_ROLE = {
+    nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
+    doctor: '87efb319c38b72100fa7bd43e4013164',
+    pharmacy: 'ac104461c3cb72100fa7bd43e4013197',
+    admin: ''
+  };
+
   /**
    * Get discharge tasks assigned to the current user (by user_id).
    * Falls back to querying by assigned_to if user_id isn't in the role map.
    */
-  async getMyTasks() {
+  async getMyTasks(roleOverride = null) {
     try {
       const currentUser = window.NOW?.user?.userID || '';
       const currentUserName = window.NOW?.user?.userName || '';
 
-      // Try to determine user's provider role from the user map
-      const providerRole = DischargeCaseService.USER_ROLE_MAP[currentUserName] || null;
-
-      // Build query: if we know the role, filter by u_provider_role; always filter by assigned_to
-      let query = '';
-      if (providerRole && providerRole !== 'admin') {
-        // Role-specific users get tasks filtered by their provider role
-        query = `u_provider_role=${providerRole}`;
-      } else if (currentUser) {
-        // Fallback: filter by assigned_to (admin sees tasks assigned to them)
-        query = `assigned_to=${currentUser}`;
-      }
+      const providerRole = roleOverride || DischargeCaseService.USER_ROLE_MAP[currentUserName] || null;
 
       const response = await fetch(
-        `/api/now/table/${this.dischargeTaskTable}?sysparm_query=${query}&sysparm_display_value=all&sysparm_limit=50&sysparm_fields=sys_id,short_description,state,priority,due_date,assigned_to,u_discharge_case,u_provider_role,sys_updated_on`,
+        `/api/now/table/${this.dischargeTaskTable}?sysparm_display_value=all&sysparm_limit=100&sysparm_fields=sys_id,short_description,state,priority,due_date,assigned_to,u_discharge_case,sys_updated_on`,
         { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
       );
 
       const { result: tasks } = await response.json();
-      
-      const caseIds = [...new Set((tasks || []).map(task => 
+
+      const extractField = (field) => {
+        if (field && typeof field === 'object') {
+          return field.value ?? field.display_value ?? '';
+        }
+        return field ?? '';
+      };
+
+      const normalizedDescription = (task) => String(extractField(task.short_description)).trim().toLowerCase();
+      const assignedTo = (task) => String(extractField(task.assigned_to));
+
+      const filteredTasks = (tasks || []).filter((task) => {
+        if (providerRole === 'admin') return true;
+
+        if (providerRole === 'doctor') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.doctor ||
+            normalizedDescription(task) === 'medical discharge review';
+        }
+
+        if (providerRole === 'pharmacy') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.pharmacy ||
+            normalizedDescription(task) === 'pharmacy medication reconcilliation' ||
+            normalizedDescription(task) === 'pharmacy medication reconciliation';
+        }
+
+        if (providerRole === 'nurse') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.nurse;
+        }
+
+        return assignedTo(task) === currentUser;
+      });
+
+      const caseIds = [...new Set(filteredTasks.map(task =>
         typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case
       ).filter(Boolean))];
 
@@ -249,8 +276,7 @@ export class DischargeCaseService {
         cases = casesData.result || [];
       }
 
-      // Enrich tasks with case info for display
-      const enrichedTasks = (tasks || []).map(task => {
+      const enrichedTasks = filteredTasks.map(task => {
         const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
         const relatedCase = cases.find(c => {
           const id = typeof c.sys_id === 'object' ? c.sys_id.value : c.sys_id;
@@ -760,3 +786,6 @@ export class DischargeCaseService {
     }
   }
 }
+
+
+

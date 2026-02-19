@@ -20,7 +20,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
     try {
       setLoading(true);
       if (view === 'my-tasks') {
-        const data = await service.getMyTasks();
+        const data = await service.getMyTasks('doctor');
         setMyTasksData(data);
       } else {
         const data = await service.getDoctorSignoffQueue();
@@ -175,14 +175,16 @@ export default function DoctorDashboard({ onSwitchRole }) {
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
                   const priorityDisplay = extractValue(task.priority);
                   const role = extractValue(task.u_provider_role);
+                  const patientName = extractValue(task.patient_name);
+                  const hospitalNumber = extractValue(task.hospital_number);
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
 
                   return (
                     <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
                       <td>
                         <div className="patient-info">
-                          <span className="patient-name">{task.patient_name || 'Unknown Patient'}</span>
-                          {task.hospital_number && <span className="hospital-number">#{task.hospital_number}</span>}
+                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
+                          {hospitalNumber && <span className="hospital-number">#{hospitalNumber}</span>}
                         </div>
                       </td>
                       <td>{taskDesc || 'Task'}</td>
@@ -318,3 +320,4 @@ export default function DoctorDashboard({ onSwitchRole }) {
     </div>
   );
 }
+
