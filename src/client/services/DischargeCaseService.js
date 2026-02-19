@@ -242,7 +242,7 @@ export class DischargeCaseService {
       let cases = [];
       if (caseIds.length > 0) {
         const casesResponse = await fetch(
-          `/api/now/table/${this.dischargeCaseTable}?sysparm_query=sys_idIN${caseIds.join(',')}&sysparm_display_value=all&sysparm_fields=sys_id,u_patient_name,u_hospital_number,u_ward,u_discharging_status`,
+          `/api/now/table/${this.dischargeCaseTable}?sysparm_query=sys_idIN${caseIds.join(',')}&sysparm_display_value=all&sysparm_fields=sys_id,u_patient_name,u_hospital_number,u_ward,u_discharge_date,u_discharging_status,u_due_date,u_risk_level,u_tasks_complete,sys_updated_on`,
           { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
         );
         const casesData = await casesResponse.json();
