@@ -60,7 +60,7 @@
 
     // Delegate to the Script Include (server-side RBAC enforced there)
     var service = new DischargeTaskService();
-    var result = service.completeTasksForRole(caseSysId, roleName);
+    var result = service.completeTasksForUser(caseSysId, roleName);
 
     if (result.success) {
         response.setStatus(200);

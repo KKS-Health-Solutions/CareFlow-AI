@@ -21,17 +21,13 @@
  * 
  * FIELD ASSUMPTIONS ON u_discharge_task:
  *   - u_discharge_case : Reference to u_cflow_patient_discharge_case
- *   - u_provider_role  : String/Choice field. Values: 'doctor', 'nurse', 'pharmacy'
+ *   - assigned_to  : Sys_ID Values
  *   - state            : Standard task state field (1=New, 2=In Progress, 3=Closed Complete, 7=Closed)
  *   - assigned_to      : Reference to sys_user
  *   - u_completed_by   : Reference to sys_user (who completed the task)
  *   - u_completed_at   : GlideDateTime (when the task was completed)
  *   - work_notes       : Journal field for audit trail
  *
- * TODO: Verify the following field names exist on your u_discharge_task table:
- *   - u_provider_role  (if named differently, update PROVIDER_ROLE_FIELD below)
- *   - u_completed_by   (if named differently, update COMPLETED_BY_FIELD below)
- *   - u_completed_at   (if named differently, update COMPLETED_AT_FIELD below)
  * =============================================================================
  */
 
@@ -44,10 +40,8 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Update these if your table schema uses different column names.
     TASK_TABLE:           'u_discharge_task',
     CASE_REF_FIELD:       'u_discharge_case',
-    PROVIDER_ROLE_FIELD:  'u_provider_role',      // TODO: confirm field name
+    ASSIGNED_TO_FIELD:    'assigned_to',
     STATE_FIELD:          'state',
-    COMPLETED_BY_FIELD:   'u_completed_by',       // TODO: confirm field name
-    COMPLETED_AT_FIELD:   'u_completed_at',       // TODO: confirm field name
     WORK_NOTES_FIELD:     'work_notes',
 
     // State values
@@ -57,18 +51,15 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Valid provider roles
     VALID_ROLES: ['doctor', 'nurse', 'pharmacy'],
 
-    // Admin override role (can complete ANY role's tasks)
-    ADMIN_ROLE: 'x_careflow_ai.careflow_ai_admin',
-
     // Role-to-ServiceNow-role mapping for permission checks
-    ROLE_MAP: {
-        'doctor':   'x_careflow_ai.careflow_ai_doctor',
-        'nurse':    'x_careflow_ai.careflow_ai_nurse',
-        'pharmacy': 'x_careflow_ai.careflow_ai_pharmacy'
+    DEFAULT_ASSIGNEE_BY_USER: {
+        'doctor':   '3D87efb319c38b72100fa7bd43e4013164',
+        'nurse':    '3D8f8f3711c3cb72100fa7bd43e40131d9',
+        'pharmacy': '3Dac104461c3cb72100fa7bd43e4013197'
     },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PUBLIC: completeTasksForRole(caseSysId, roleName)
+    // PUBLIC: completeTasksForRole(caseSysId, userName)
     // ═══════════════════════════════════════════════════════════════════
     /**
      * Completes all open discharge tasks for a given role on a given case.
@@ -78,10 +69,10 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
      *     OR the admin override role (careflow_ai_admin).
      * 
      * @param {string} caseSysId  - sys_id of the u_cflow_patient_discharge_case record
-     * @param {string} roleName   - one of: 'doctor', 'nurse', 'pharmacy'
+     * @param {string} userName   - one of: 'doctor', 'nurse', 'pharmacy'
      * @returns {object} { success, updatedCount, skippedCount, errors[], message }
      */
-    completeTasksForRole: function(caseSysId, roleName) {
+    completeTasksForRole: function(caseSysId, userName) {
         var result = {
             success: false,
             updatedCount: 0,
@@ -97,30 +88,20 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             return result;
         }
 
-        roleName = (roleName || '').toLowerCase().trim();
-        if (this.VALID_ROLES.indexOf(roleName) === -1) {
-            result.errors.push('Invalid role: ' + roleName + '. Must be one of: ' + this.VALID_ROLES.join(', '));
+        userName = (userName || '').toLowerCase().trim();
+        if (this.VALID_ROLES.indexOf(userName) === -1) {
+            result.errors.push('Invalid role: ' + userName + '. Must be one of: ' + this.VALID_ROLES.join(', '));
             result.message = 'Invalid provider role';
             return result;
         }
 
-        // ── 2. Permission check (SERVER-SIDE ENFORCEMENT) ───────────
-        var currentUser = gs.getUserID();
-        var requiredRole = this.ROLE_MAP[roleName];
-        var hasRequiredRole = gs.hasRole(requiredRole);
-        var hasAdminOverride = gs.hasRole(this.ADMIN_ROLE);
+		var assigneeSysId = this.DEFAULT_ASSIGNEE_BY_USER[userName];
+		if (!assigneeSysId) {
+			result.errors.push('No assignee configured for user: ' + userName);
+			result.message = 'Missing assignee mapping';
+			return result;
+		}
 
-        if (!hasRequiredRole && !hasAdminOverride) {
-            result.errors.push(
-                'Access denied. User ' + gs.getUserName() +
-                ' does not have role ' + requiredRole +
-                ' or admin override ' + this.ADMIN_ROLE
-            );
-            result.message = 'Permission denied: you do not have the ' + roleName + ' role';
-            gs.warn('DischargeTaskService: RBAC violation - user ' + gs.getUserName() +
-                     ' attempted to complete ' + roleName + ' tasks on case ' + caseSysId);
-            return result;
-        }
 
         // ── 3. Verify the case exists ────────────────────────────────
         var caseGr = new GlideRecord('u_cflow_patient_discharge_case');
@@ -133,7 +114,7 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // ── 4. Query open tasks for the specified role ───────────────
         var taskGr = new GlideRecord(this.TASK_TABLE);
         taskGr.addQuery(this.CASE_REF_FIELD, caseSysId);
-        taskGr.addQuery(this.PROVIDER_ROLE_FIELD, roleName);
+		taskGr.addQuery(this.ASSIGNED_TO_FIELD, assigneeSysId);
         taskGr.addQuery(this.STATE_FIELD, 'IN', this.STATES_NOT_COMPLETE);
         taskGr.query();
 
@@ -143,18 +124,12 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         while (taskGr.next()) {
             try {
                 taskGr.setValue(this.STATE_FIELD, this.STATE_CLOSED_COMPLETE);
-                taskGr.setValue(this.COMPLETED_BY_FIELD, currentUser);
-                taskGr.setValue(this.COMPLETED_AT_FIELD, now);
 
                 // Audit work note
                 var auditNote = 'Completed via patient_discharge_case provider button.\n' +
-                                'Role: ' + roleName + '\n' +
-                                'Completed by: ' + gs.getUserDisplayName() + '\n' +
+                                'Completed by: ' + userName + '\n' +
                                 'Method: DischargeTaskService.completeTasksForRole()';
 
-                if (hasAdminOverride && !hasRequiredRole) {
-                    auditNote += '\n⚠ Admin override used (user does not hold ' + requiredRole + ' role)';
-                }
 
                 taskGr.setValue(this.WORK_NOTES_FIELD, auditNote);
 
@@ -177,10 +152,10 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // ── 7. Build result ──────────────────────────────────────────
         if (result.updatedCount === 0 && result.skippedCount === 0) {
             result.success = true;
-            result.message = 'No open ' + roleName + ' tasks found for this case';
+            result.message = 'No open ' + userName + ' tasks found for this case';
         } else if (result.errors.length === 0) {
             result.success = true;
-            result.message = result.updatedCount + ' ' + roleName +
+            result.message = result.updatedCount + ' ' + userName +
                              ' task(s) marked complete';
         } else {
             result.success = result.updatedCount > 0;
@@ -190,12 +165,20 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         // Audit log
         gs.info('DischargeTaskService.completeTasksForRole: case=' + caseSysId +
-                ', role=' + roleName + ', updated=' + result.updatedCount +
+                ', role=' + userName + ', updated=' + result.updatedCount +
                 ', skipped=' + result.skippedCount +
                 ', user=' + gs.getUserName());
 
         return result;
     },
+
+	_getRoleFromAssignee: function(assigneeSysId) {
+		for (var role in this.DEFAULT_ASSIGNEE_BY_USER) {
+			if (this.DEFAULT_ASSIGNEE_BY_USER[role] === assigneeSysId)
+			return role;
+		}
+		return '';
+		},
 
     // ═══════════════════════════════════════════════════════════════════
     // PUBLIC: getTaskSummaryByRole(caseSysId)
@@ -221,8 +204,9 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         taskGr.query();
 
         while (taskGr.next()) {
-            var providerRole = taskGr.getValue(this.PROVIDER_ROLE_FIELD) || '';
-            providerRole = providerRole.toLowerCase().trim();
+            var assigneeSysId = taskGr.getValue(this.ASSIGNED_TO_FIELD) || '';
+			var providerRole = this._getRoleFromAssignee(assigneeSysId);
+
 
             if (summary.hasOwnProperty(providerRole)) {
                 summary[providerRole].total++;
@@ -273,9 +257,9 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
      */
     ajaxCompleteTasksForRole: function() {
         var caseSysId = this.getParameter('sysparm_case_sys_id');
-        var roleName = this.getParameter('sysparm_role_name');
+        var userName = this.getParameter('sysparm_role_name');
 
-        var result = this.completeTasksForRole(caseSysId, roleName);
+        var result = this.completeTasksForRole(caseSysId, userName);
         return JSON.stringify(result);
     },
 

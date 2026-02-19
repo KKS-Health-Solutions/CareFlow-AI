@@ -534,18 +534,6 @@ export class DischargeCaseService {
     return result;
   }
 
-  /**
-   * @deprecated Use completeTasksForRole() instead.
-   * This old method set u_tasks_complete = true on the case directly,
-   * allowing a nurse to complete ALL roles' tasks. Kept for backward
-   * compatibility but should not be called from new code.
-   */
-  async completeDischargeTasks(caseId) {
-    console.warn('DischargeCaseService.completeDischargeTasks() is DEPRECATED. Use completeTasksForRole() instead.');
-    const result = await this.updateCase(caseId, { u_tasks_complete: true });
-    await this.createCommunicationEntry(caseId, 'system', 'sent', 'audit', 'Discharge tasks completed', null);
-    return result;
-  }
 
   // ═══════════════════════════════════════════════════════════════════
   // ROLE-SCOPED TASK COMPLETION (replaces completeDischargeTasks)
@@ -560,21 +548,21 @@ export class DischargeCaseService {
    * Server-side enforced: user must have the matching role or discharge_admin.
    *
    * @param {string} caseId   - sys_id of the discharge case
-   * @param {string} roleName - 'doctor' | 'nurse' | 'pharmacy'
+   * @param {string} userName - 'doctor' | 'nurse' | 'pharmacy'
    * @returns {object} { status, message, data: { updated_count, skipped_count, errors[] } }
    */
-  async completeTasksForRole(caseId, roleName) {
+  async completeTasksForUser(caseId, userName) {
     try {
       const response = await fetch(
-        `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${caseId}/complete_tasks`,
+        `/api/728557/discharge_task_api/complete_task/${caseId}`,
         {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-UserToken': window.g_ck
           },
-          body: JSON.stringify({ role_name: roleName })
+          body: JSON.stringify({ user_name: userName })
         }
       );
 
@@ -591,34 +579,34 @@ export class DischargeCaseService {
         data: json.result.data
       };
     } catch (error) {
-      console.error(`Error completing ${roleName} tasks:`, error);
+      console.error(`Error completing ${userName} tasks:`, error);
       throw error;
     }
   }
 
   /** Convenience: complete only nurse tasks */
   async completeNurseTasks(caseId) {
-    return this.completeTasksForRole(caseId, 'nurse');
+    return this.completeTasksForUser(caseId, 'nurse');
   }
 
   /** Convenience: complete only doctor tasks */
   async completeDoctorTasks(caseId) {
-    return this.completeTasksForRole(caseId, 'doctor');
+    return this.completeTasksForUser(caseId, 'doctor');
   }
 
   /** Convenience: complete only pharmacy tasks */
   async completePharmacyTasks(caseId) {
-    return this.completeTasksForRole(caseId, 'pharmacy');
+    return this.completeTasksForUser(caseId, 'pharmacy');
   }
 
   /**
    * Get task completion summary broken down by role.
    * Returns { doctor: {total, open, complete}, nurse: {...}, pharmacy: {...} }
    */
-  async getTaskSummaryByRole(caseId) {
+  async getTaskSummaryByRole(userId) {
     try {
       const response = await fetch(
-        `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${caseId}/task_summary`,
+        `/api/728557/discharge_task_api/tasks/${userId}`,
         {
           method: 'GET',
           headers: {
@@ -640,6 +628,39 @@ export class DischargeCaseService {
     }
   }
 
+  async getTaskSummaryByCaseAndUser(caseId, userId){
+
+    try {
+      const response = await fetch(
+        `/api/728557/discharge_task_api/tasks/${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch task summary: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      const data = json.result; // <-- your scripted REST returns { result: { user_id, count, tasks } }
+
+      const tasksForCaseId = (data.tasks || []).filter(
+        (t) => t.discharge_case === caseId
+      );
+
+      return {count: tasksForCaseId.length,
+              tasks: tasksForCaseId
+            };
+    } catch (error) {
+      console.error('Error fetching task summary by role:', error);
+      throw error;
+    }
+  }
   async requestSummaryReview(summaryId) {
     const result = await this.updateSummary(summaryId, { u_summary_status: 'ready_for_review' });
     return result;
