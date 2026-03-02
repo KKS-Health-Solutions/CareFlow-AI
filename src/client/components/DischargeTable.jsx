@@ -73,6 +73,7 @@ export default function DischargeTable({ cases, onFilterChange, filters }) {
             <option value="cardiology">Cardiology</option>
             <option value="endocrinology">Endocrinology</option>
             <option value="radiology">Radiology</option>
+            <option value="orthopedics">Orthopedics</option>
           </select>
 
           <label className="filter-checkbox">

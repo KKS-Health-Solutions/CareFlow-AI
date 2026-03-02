@@ -224,9 +224,10 @@ export default function AdminDashboard({ onSwitchRole }) {
       ? caseItem.u_discharging_status.value 
       : caseItem.u_discharging_status;
     
-    const ward = typeof caseItem.u_ward === 'object' 
-      ? caseItem.u_ward.value 
+    const rawWard = typeof caseItem.u_ward === 'object' && caseItem.u_ward !== null
+      ? caseItem.u_ward.value
       : caseItem.u_ward;
+    const ward = (rawWard || '').toLowerCase().replace(/\s+/g, '_');
 
     const dueDate = typeof caseItem.u_due_date === 'object' 
       ? caseItem.u_due_date.value 
@@ -438,6 +439,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                 <option value="cardiology">Cardiology</option>
                 <option value="endocrinology">Endocrinology</option>
                 <option value="radiology">Radiology</option>
+                <option value="orthopedics">Orthopedics</option>
               </select>
 
               <label className="filter-checkbox">
