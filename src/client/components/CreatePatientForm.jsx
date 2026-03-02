@@ -21,16 +21,10 @@ export default function CreatePatientForm({ onBack, onSubmit }) {
   const wardOptions = [
     'General Medicine',
     'General Surgery',
-    'Orthopedics',
     'Cardiology',
-    'Neurology',
-    'Oncology',
-    'Pediatrics',
-    'ICU',
-    'Maternity',
-    'Geriatrics',
-    'Respiratory',
-    'Gastroenterology'
+    'Endocrinology',
+    'Orthopedics',
+    'Radiology'
   ];
 
   const riskLevelOptions = [
