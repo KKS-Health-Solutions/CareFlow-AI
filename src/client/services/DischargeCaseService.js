@@ -210,7 +210,7 @@ export class DischargeCaseService {
     nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
     doctor: '87efb319c38b72100fa7bd43e4013164',
     pharmacy: 'ac104461c3cb72100fa7bd43e4013197',
-    admin: ''
+    admin: '8120c461c3cb72100fa7bd43e401318e'
   };
 
   /**
