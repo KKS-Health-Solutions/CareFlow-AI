@@ -6,3 +6,4 @@ target/
 *.tsbuildinfo
 .jest_cache
 package-lock.json
+src/fluent/generated/keys.ts
