@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { DischargeCaseService } from '../services/DischargeCaseService.js';
+import Navigation from './Navigation.jsx';
 import './AdminDashboard.css';
 
 export default function AdminDashboard({ onSwitchRole }) {
   const [adminData, setAdminData] = useState({ cases: [], stats: {}, exceptions: [] });
+  const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
@@ -14,38 +16,57 @@ export default function AdminDashboard({ onSwitchRole }) {
     missingFields: false
   });
   const [selectedView, setSelectedView] = useState('overview'); // overview, exceptions, communications
+  const [currentView, setCurrentView] = useState('admin-center'); // admin-center, failed-communications, my-tasks
 
   const service = new DischargeCaseService();
 
   useEffect(() => {
-    loadAdminData();
-  }, []);
+    loadViewData(currentView);
+  }, [currentView]);
 
-  const loadAdminData = async () => {
+  const loadViewData = async (view) => {
     try {
       setLoading(true);
-      const [dashboardData, failedComms] = await Promise.all([
-        service.getDashboardData(),
-        service.getFailedCommunications()
-      ]);
-      
-      const exceptions = await getExceptionalCases(dashboardData.cases);
-      
-      setAdminData({
-        cases: dashboardData.cases,
-        stats: {
-          ...dashboardData.stats,
-          failedComms: failedComms.communications?.length || 0,
-          overdueTasks: calculateOverdueTasks(dashboardData.cases)
-        },
-        exceptions,
-        failedCommunications: failedComms.communications || []
-      });
+      if (view === 'my-tasks') {
+        const data = await service.getMyTasks('admin');
+        setMyTasksData(data);
+      } else {
+        await loadAdminData();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNavigate = (viewId) => {
+    setCurrentView(viewId);
+    if (viewId === 'failed-communications') {
+      setSelectedView('communications');
+    } else if (viewId === 'admin-center') {
+      setSelectedView('overview');
+    }
+  };
+
+  const loadAdminData = async () => {
+    const [dashboardData, failedComms] = await Promise.all([
+      service.getDashboardData(),
+      service.getFailedCommunications()
+    ]);
+    
+    const exceptions = await getExceptionalCases(dashboardData.cases);
+    
+    setAdminData({
+      cases: dashboardData.cases,
+      stats: {
+        ...dashboardData.stats,
+        failedComms: failedComms.communications?.length || 0,
+        overdueTasks: calculateOverdueTasks(dashboardData.cases)
+      },
+      exceptions,
+      failedCommunications: failedComms.communications || []
+    });
   };
 
   const calculateOverdueTasks = (cases) => {
@@ -226,10 +247,15 @@ export default function AdminDashboard({ onSwitchRole }) {
 
   if (loading) {
     return (
-      <div className="admin-dashboard">
-        <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading Admin Dashboard...</p>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="admin" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="admin-dashboard">
+            <div className="dashboard-loading">
+              <div className="loading-spinner"></div>
+              <p>Loading Admin Dashboard...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -237,31 +263,100 @@ export default function AdminDashboard({ onSwitchRole }) {
 
   if (error) {
     return (
-      <div className="admin-dashboard">
-        <div className="dashboard-error">
-          <h3>Error Loading Admin Dashboard</h3>
-          <p>{error}</p>
-          <button onClick={loadAdminData} className="retry-button">Retry</button>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="admin" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="admin-dashboard">
+            <div className="dashboard-error">
+              <h3>Error Loading Admin Dashboard</h3>
+              <p>{error}</p>
+              <button onClick={() => loadViewData(currentView)} className="retry-button">Retry</button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-dashboard">
+    <div className="app-container">
+      <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="admin" onSwitchRole={onSwitchRole} />
+      <div className="main-content">
+        <div className="admin-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
           <h1 style={{ marginRight: '10px' }}>⚙️ Admin Command Center</h1>
           <div className="header-actions">
-            <button onClick={() => onSwitchRole()} className="switch-role-button">
-              Switch Role
-            </button>
-            <button onClick={loadAdminData} className="refresh-button">
+            <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
             </button>
           </div>
         </div>
       </div>
+
+      {currentView === 'my-tasks' ? (
+        /* ═══════════════ MY TASKS VIEW ═══════════════ */
+        <div className="my-tasks-section">
+          <div className="tasks-table-container">
+            <table className="cases-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Task</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Due Date</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myTasksData.tasks.map((task, index) => {
+                  const taskDesc = extractValue(task.short_description);
+                  const state = typeof task.state === 'object' ? task.state.value : task.state;
+                  const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
+                  const priorityDisplay = extractValue(task.priority);
+                  const role = extractValue(task.u_provider_role);
+                  const patientName = extractValue(task.patient_name);
+                  const hospitalNumber = extractValue(task.hospital_number);
+                  const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
+
+                  return (
+                    <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
+                      <td>
+                        <div className="patient-info">
+                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
+                          {hospitalNumber && <span className="hospital-number">#{hospitalNumber}</span>}
+                        </div>
+                      </td>
+                      <td>{taskDesc || 'Task'}</td>
+                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
+                      <td>
+                        <span className={`status-badge ${state === '3' ? 'status-discharged' : state === '2' ? 'status-ready' : 'status-draft'}`}>
+                          {stateDisplay || 'New'}
+                        </span>
+                      </td>
+                      <td>{priorityDisplay || '-'}</td>
+                      <td>{formatDate(task.due_date)}</td>
+                      <td>{formatDate(task.sys_updated_on)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {myTasksData.tasks.length === 0 && (
+              <div className="no-exceptions">
+                <div className="no-exceptions-icon">✅</div>
+                <h3>No tasks assigned to you</h3>
+                <p>You have no outstanding discharge tasks.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ═══════════════ ADMIN CENTER VIEW ═══════════════ */
+        <React.Fragment>
 
       {/* KPI Tiles */}
       <div className="kpi-section">
@@ -345,6 +440,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                 <option value="cardiology">Cardiology</option>
                 <option value="endocrinology">Endocrinology</option>
                 <option value="radiology">Radiology</option>
+                <option value="orthopedics">Orthopedics</option>
               </select>
 
               <label className="filter-checkbox">
@@ -526,6 +622,11 @@ export default function AdminDashboard({ onSwitchRole }) {
           </div>
         </div>
       )}
+      </React.Fragment>
+      )}
+    </div>
+      </div>
     </div>
   );
 }
+

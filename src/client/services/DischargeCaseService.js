@@ -194,29 +194,103 @@ export class DischargeCaseService {
   }
 
   // Existing methods continue...
-  async getMyTasks() {
+  // ═══════════════════════════════════════════════════════════════════════
+  // USER-TO-ROLE MAPPING
+  // Maps ServiceNow user_ids to their CareFlow provider role.
+  // Used by getMyTasks() to filter tasks assigned to the logged-in user.
+  // ═══════════════════════════════════════════════════════════════════════
+  static USER_ROLE_MAP = {
+    'careflow_doctor':   'doctor',
+    'careflow_nurse':    'nurse',
+    'careflow_pharmacy': 'pharmacy',
+    'careflow_admin':    'admin'
+  };
+
+  static USER_ID_BY_ROLE = {
+    nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
+    doctor: '87efb319c38b72100fa7bd43e4013164',
+    pharmacy: 'ac104461c3cb72100fa7bd43e4013197',
+    admin: ''
+  };
+
+  /**
+   * Get discharge tasks assigned to the current user (by user_id).
+   * Falls back to querying by assigned_to if user_id isn't in the role map.
+   */
+  async getMyTasks(roleOverride = null) {
     try {
-      const currentUser = window.NOW?.user?.userID || 'current_user';
-      const response = await fetch(`/api/now/table/${this.dischargeTaskTable}?sysparm_query=assigned_to=${currentUser}&sysparm_display_value=all&sysparm_limit=50`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
+      const currentUser = window.NOW?.user?.userID || '';
+      const currentUserName = window.NOW?.user?.userName || '';
+
+      const providerRole = roleOverride || DischargeCaseService.USER_ROLE_MAP[currentUserName] || null;
+
+      const response = await fetch(
+        `/api/now/table/${this.dischargeTaskTable}?sysparm_display_value=all&sysparm_limit=100&sysparm_fields=sys_id,short_description,state,priority,due_date,assigned_to,u_discharge_case,sys_updated_on`,
+        { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
+      );
 
       const { result: tasks } = await response.json();
-      
-      const caseIds = [...new Set(tasks.map(task => 
+
+      const extractField = (field) => {
+        if (field && typeof field === 'object') {
+          return field.value ?? field.display_value ?? '';
+        }
+        return field ?? '';
+      };
+
+      const normalizedDescription = (task) => String(extractField(task.short_description)).trim().toLowerCase();
+      const assignedTo = (task) => String(extractField(task.assigned_to));
+
+      const filteredTasks = (tasks || []).filter((task) => {
+        if (providerRole === 'admin') return true;
+
+        if (providerRole === 'doctor') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.doctor ||
+            normalizedDescription(task) === 'medical discharge review';
+        }
+
+        if (providerRole === 'pharmacy') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.pharmacy ||
+            normalizedDescription(task) === 'pharmacy medication reconcilliation' ||
+            normalizedDescription(task) === 'pharmacy medication reconciliation';
+        }
+
+        if (providerRole === 'nurse') {
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.nurse;
+        }
+
+        return assignedTo(task) === currentUser;
+      });
+
+      const caseIds = [...new Set(filteredTasks.map(task =>
         typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case
       ).filter(Boolean))];
 
       let cases = [];
       if (caseIds.length > 0) {
-        const casesResponse = await fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=sys_idIN${caseIds.join(',')}&sysparm_display_value=all`, {
-          headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-        });
+        const casesResponse = await fetch(
+          `/api/now/table/${this.dischargeCaseTable}?sysparm_query=sys_idIN${caseIds.join(',')}&sysparm_display_value=all&sysparm_fields=sys_id,u_patient_name,u_hospital_number,u_ward,u_discharge_date,u_discharging_status,u_due_date,u_risk_level,u_tasks_complete,sys_updated_on`,
+          { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
+        );
         const casesData = await casesResponse.json();
         cases = casesData.result || [];
       }
 
-      return { cases, tasks: tasks || [] };
+      const enrichedTasks = filteredTasks.map(task => {
+        const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
+        const relatedCase = cases.find(c => {
+          const id = typeof c.sys_id === 'object' ? c.sys_id.value : c.sys_id;
+          return id === caseId;
+        });
+        return {
+          ...task,
+          patient_name: relatedCase?.u_patient_name,
+          hospital_number: relatedCase?.u_hospital_number,
+          ward: relatedCase?.u_ward
+        };
+      });
+
+      return { cases, tasks: enrichedTasks };
     } catch (error) {
       console.error('Error fetching my tasks:', error);
       return { cases: [], tasks: [] };
@@ -486,12 +560,133 @@ export class DischargeCaseService {
     return result;
   }
 
-  async completeDischargeTasks(caseId) {
-    const result = await this.updateCase(caseId, { u_tasks_complete: true });
-    await this.createCommunicationEntry(caseId, 'system', 'sent', 'audit', 'Discharge tasks completed', null);
-    return result;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ROLE-SCOPED TASK COMPLETION (replaces completeDischargeTasks)
+  //
+  // Each method calls the server-side DischargeTaskService via the
+  // Scripted REST API. The server enforces RBAC — if the logged-in
+  // user doesn't hold the matching role, the request returns 403.
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Complete discharge tasks for a specific provider role.
+   * Server-side enforced: user must have the matching role or discharge_admin.
+   *
+   * @param {string} caseId   - sys_id of the discharge case
+   * @param {string} userName - 'doctor' | 'nurse' | 'pharmacy'
+   * @returns {object} { status, message, data: { updated_count, skipped_count, errors[] } }
+   */
+  async completeTasksForUser(caseId, userName) {
+    try {
+      const response = await fetch(
+        `/api/728557/discharge_task_api/complete_task/${caseId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          },
+          body: JSON.stringify({ user_name: userName })
+        }
+      );
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = json?.result?.message || response.statusText;
+        throw new Error(errorMsg);
+      }
+
+      return {
+        success: true,
+        message: json.result.message,
+        data: json.result.data
+      };
+    } catch (error) {
+      console.error(`Error completing ${userName} tasks:`, error);
+      throw error;
+    }
   }
 
+  /** Convenience: complete only nurse tasks */
+  async completeNurseTasks(caseId) {
+    return this.completeTasksForUser(caseId, 'nurse');
+  }
+
+  /** Convenience: complete only doctor tasks */
+  async completeDoctorTasks(caseId) {
+    return this.completeTasksForUser(caseId, 'doctor');
+  }
+
+  /** Convenience: complete only pharmacy tasks */
+  async completePharmacyTasks(caseId) {
+    return this.completeTasksForUser(caseId, 'pharmacy');
+  }
+
+  /**
+   * Get task completion summary broken down by role.
+   * Returns { doctor: {total, open, complete}, nurse: {...}, pharmacy: {...} }
+   */
+  async getTaskSummaryByRole(userId) {
+    try {
+      const response = await fetch(
+        `/api/728557/discharge_task_api/tasks/${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch task summary: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      return json.result.data;
+    } catch (error) {
+      console.error('Error fetching task summary by role:', error);
+      throw error;
+    }
+  }
+
+  async getTaskSummaryByCaseAndUser(caseId, userId){
+
+    try {
+      const response = await fetch(
+        `/api/728557/discharge_task_api/tasks/${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch task summary: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      const data = json.result; // <-- your scripted REST returns { result: { user_id, count, tasks } }
+
+      const tasksForCaseId = (data.tasks || []).filter(
+        (t) => t.discharge_case === caseId
+      );
+
+      return {count: tasksForCaseId.length,
+              tasks: tasksForCaseId
+            };
+    } catch (error) {
+      console.error('Error fetching task summary by role:', error);
+      throw error;
+    }
+  }
   async requestSummaryReview(summaryId) {
     const result = await this.updateSummary(summaryId, { u_summary_status: 'ready_for_review' });
     return result;
@@ -591,3 +786,6 @@ export class DischargeCaseService {
     }
   }
 }
+
+
+

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { DischargeCaseService } from '../services/DischargeCaseService.js';
+import Navigation from './Navigation.jsx';
 import './PharmacyDashboard.css';
 
 export default function PharmacyDashboard({ onSwitchRole }) {
   const [pharmacyData, setPharmacyData] = useState({ tasks: [], stats: {} });
+  const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentView, setCurrentView] = useState('pharmacy-inbox');
   const [filters, setFilters] = useState({
     assignedToMe: false,
     open: false,
@@ -16,19 +19,28 @@ export default function PharmacyDashboard({ onSwitchRole }) {
   const service = new DischargeCaseService();
 
   useEffect(() => {
-    loadPharmacyData();
-  }, []);
+    loadViewData(currentView);
+  }, [currentView]);
 
-  const loadPharmacyData = async () => {
+  const loadViewData = async (view) => {
     try {
       setLoading(true);
-      const data = await service.getPharmacyTasks();
-      setPharmacyData(data);
+      if (view === 'my-tasks') {
+        const data = await service.getMyTasks('pharmacy');
+        setMyTasksData(data);
+      } else {
+        const data = await service.getPharmacyTasks();
+        setPharmacyData(data);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNavigate = (viewId) => {
+    setCurrentView(viewId);
   };
 
   const handleFilterChange = (filterName, value) => {
@@ -118,10 +130,15 @@ export default function PharmacyDashboard({ onSwitchRole }) {
 
   if (loading) {
     return (
-      <div className="pharmacy-dashboard">
-        <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading Pharmacy Dashboard...</p>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="pharmacy" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="pharmacy-dashboard">
+            <div className="dashboard-loading">
+              <div className="loading-spinner"></div>
+              <p>Loading Pharmacy Dashboard...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -129,31 +146,104 @@ export default function PharmacyDashboard({ onSwitchRole }) {
 
   if (error) {
     return (
-      <div className="pharmacy-dashboard">
-        <div className="dashboard-error">
-          <h3>Error Loading Pharmacy Dashboard</h3>
-          <p>{error}</p>
-          <button onClick={loadPharmacyData} className="retry-button">Retry</button>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="pharmacy" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="pharmacy-dashboard">
+            <div className="dashboard-error">
+              <h3>Error Loading Pharmacy Dashboard</h3>
+              <p>{error}</p>
+              <button onClick={() => loadViewData(currentView)} className="retry-button">Retry</button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pharmacy-dashboard">
+    <div className="app-container">
+      <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="pharmacy" onSwitchRole={onSwitchRole} />
+      <div className="main-content">
+        <div className="pharmacy-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
           <h1 style={{ marginRight: '10px' }}>💊 Pharmacy Inbox</h1>
           <div className="header-actions">
-            <button onClick={() => onSwitchRole()} className="switch-role-button">
-              Switch Role
-            </button>
-            <button onClick={loadPharmacyData} className="refresh-button">
+            <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
             </button>
           </div>
         </div>
       </div>
+
+      {currentView === 'my-tasks' ? (
+        /* ═══════════════ MY TASKS VIEW ═══════════════ */
+        <div className="my-tasks-section">
+          <div className="tasks-table-container">
+            <table className="tasks-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Task</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Due Date</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myTasksData.tasks.map((task, index) => {
+                  const taskDesc = extractValue(task.short_description);
+                  const state = typeof task.state === 'object' ? task.state.value : task.state;
+                  const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
+                  const priorityDisplay = extractValue(task.priority);
+                  const role = extractValue(task.u_provider_role);
+                  const patientName = extractValue(task.patient_name);
+                  const hospitalNumber = extractValue(task.hospital_number);
+                  const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
+
+                  return (
+                    <tr key={index} className="task-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
+                      <td>
+                        <div className="patient-info">
+                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
+                          {hospitalNumber && <span className="hospital-number">#{hospitalNumber}</span>}
+                        </div>
+                      </td>
+                      <td>{taskDesc || 'Task'}</td>
+                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
+                      <td>
+                        <span className={`state-badge ${state === '3' ? 'state-complete' : state === '2' ? 'state-progress' : 'state-new'}`}>
+                          {stateDisplay || 'New'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`priority-badge ${getPriorityColor(task.priority)}`}>
+                          {priorityDisplay || 'Normal'}
+                        </span>
+                      </td>
+                      <td>{formatDate(task.due_date)}</td>
+                      <td>{formatDate(task.sys_updated_on)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {myTasksData.tasks.length === 0 && (
+              <div className="no-tasks">
+                <div className="no-tasks-icon">✅</div>
+                <h3>No tasks assigned to you</h3>
+                <p>You have no outstanding discharge tasks.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ═══════════════ PHARMACY INBOX VIEW ═══════════════ */
+        <React.Fragment>
 
       {/* KPI Tiles */}
       <div className="kpi-section">
@@ -282,6 +372,11 @@ export default function PharmacyDashboard({ onSwitchRole }) {
           )}
         </div>
       </div>
+      </React.Fragment>
+      )}
+    </div>
+      </div>
     </div>
   );
 }
+

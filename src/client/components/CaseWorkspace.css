@@ -724,3 +724,83 @@
     align-self: center;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Per-Role Task Summary Tiles
+   Shows completion progress per provider role (nurse/doctor/pharmacy)
+   with inline "Mark complete" buttons scoped to the user's role.
+   ═══════════════════════════════════════════════════════════════════ */
+.task-summary-by-role {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.role-task-tile {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8f9fa;
+  transition: border-color 0.2s;
+}
+
+.role-task-tile.complete {
+  border-color: #28a745;
+  background: #f0faf3;
+}
+
+.role-task-tile.pending {
+  border-color: #ffc107;
+  background: #fffdf0;
+}
+
+.role-task-tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.role-task-tile-header strong {
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.role-task-tile-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #555;
+}
+
+.role-task-tile-body .action-button.small {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+/* Role badge shown on individual tasks in the list */
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.role-badge.role-nurse {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.role-badge.role-doctor {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.role-badge.role-pharmacy {
+  background-color: #fff3cd;
+  color: #856404;
+}

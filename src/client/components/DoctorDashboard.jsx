@@ -1,28 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { DischargeCaseService } from '../services/DischargeCaseService.js';
+import Navigation from './Navigation.jsx';
 import './DoctorDashboard.css';
 
 export default function DoctorDashboard({ onSwitchRole }) {
   const [doctorData, setDoctorData] = useState({ cases: [], stats: {} });
+  const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentView, setCurrentView] = useState('doctor-signoff');
 
   const service = new DischargeCaseService();
 
   useEffect(() => {
-    loadDoctorData();
-  }, []);
+    loadViewData(currentView);
+  }, [currentView]);
 
-  const loadDoctorData = async () => {
+  const loadViewData = async (view) => {
     try {
       setLoading(true);
-      const data = await service.getDoctorSignoffQueue();
-      setDoctorData(data);
+      if (view === 'my-tasks') {
+        const data = await service.getMyTasks('doctor');
+        setMyTasksData(data);
+      } else {
+        const data = await service.getDoctorSignoffQueue();
+        setDoctorData(data);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNavigate = (viewId) => {
+    setCurrentView(viewId);
   };
 
   const handleCaseClick = (caseItem) => {
@@ -93,10 +105,15 @@ export default function DoctorDashboard({ onSwitchRole }) {
 
   if (loading) {
     return (
-      <div className="doctor-dashboard">
-        <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading Doctor Dashboard...</p>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="doctor" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="doctor-dashboard">
+            <div className="dashboard-loading">
+              <div className="loading-spinner"></div>
+              <p>Loading Doctor Dashboard...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -104,31 +121,100 @@ export default function DoctorDashboard({ onSwitchRole }) {
 
   if (error) {
     return (
-      <div className="doctor-dashboard">
-        <div className="dashboard-error">
-          <h3>Error Loading Doctor Dashboard</h3>
-          <p>{error}</p>
-          <button onClick={loadDoctorData} className="retry-button">Retry</button>
+      <div className="app-container">
+        <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="doctor" onSwitchRole={onSwitchRole} />
+        <div className="main-content">
+          <div className="doctor-dashboard">
+            <div className="dashboard-error">
+              <h3>Error Loading Doctor Dashboard</h3>
+              <p>{error}</p>
+              <button onClick={() => loadViewData(currentView)} className="retry-button">Retry</button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="doctor-dashboard">
+    <div className="app-container">
+      <Navigation currentView={currentView} onNavigate={handleNavigate} userRole="doctor" onSwitchRole={onSwitchRole} />
+      <div className="main-content">
+        <div className="doctor-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
           <h1 style={{ marginRight: '10px' }}>👨‍⚕️ Doctor Sign-off</h1>
           <div className="header-actions">
-            <button onClick={() => onSwitchRole()} className="switch-role-button">
-              Switch Role
-            </button>
-            <button onClick={loadDoctorData} className="refresh-button">
+            <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
             </button>
           </div>
         </div>
       </div>
+
+      {currentView === 'my-tasks' ? (
+        /* ═══════════════ MY TASKS VIEW ═══════════════ */
+        <div className="my-tasks-section">
+          <div className="tasks-table-container">
+            <table className="cases-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Task</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Due Date</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myTasksData.tasks.map((task, index) => {
+                  const taskDesc = extractValue(task.short_description);
+                  const state = typeof task.state === 'object' ? task.state.value : task.state;
+                  const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
+                  const priorityDisplay = extractValue(task.priority);
+                  const role = extractValue(task.u_provider_role);
+                  const patientName = extractValue(task.patient_name);
+                  const hospitalNumber = extractValue(task.hospital_number);
+                  const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
+
+                  return (
+                    <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
+                      <td>
+                        <div className="patient-info">
+                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
+                          {hospitalNumber && <span className="hospital-number">#{hospitalNumber}</span>}
+                        </div>
+                      </td>
+                      <td>{taskDesc || 'Task'}</td>
+                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
+                      <td>
+                        <span className={`status-badge ${state === '3' ? 'status-discharged' : state === '2' ? 'status-ready' : 'status-draft'}`}>
+                          {stateDisplay || 'New'}
+                        </span>
+                      </td>
+                      <td>{priorityDisplay || '-'}</td>
+                      <td>{formatDate(task.due_date)}</td>
+                      <td>{formatDate(task.sys_updated_on)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {myTasksData.tasks.length === 0 && (
+              <div className="no-cases">
+                <div className="no-cases-icon">✅</div>
+                <h3>No tasks assigned to you</h3>
+                <p>You have no outstanding discharge tasks.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ═══════════════ SIGN-OFF QUEUE VIEW ═══════════════ */
+        <React.Fragment>
 
       {/* KPI Tiles */}
       <div className="kpi-section">
@@ -227,6 +313,11 @@ export default function DoctorDashboard({ onSwitchRole }) {
           )}
         </div>
       </div>
+      </React.Fragment>
+      )}
+    </div>
+      </div>
     </div>
   );
 }
+

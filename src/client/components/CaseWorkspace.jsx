@@ -11,16 +11,31 @@ export default function CaseWorkspace() {
   const [actionLoading, setActionLoading] = useState(false);
   const [availableCases, setAvailableCases] = useState([]);
   const [selectedCaseId, setSelectedCaseId] = useState('');
+  // Per-role task completion summary: { doctor: {total,open,complete}, nurse: {...}, pharmacy: {...} }
+  const [taskSummaryByRole, setTaskSummaryByRole] = useState(null);
 
   const service = new DischargeCaseService();
 
+  const [activeUserId, setActiveUserId] = useState('');
+
+  const USER_ID_BY_ROLE = {
+    nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
+    doctor: '87efb319c38b72100fa7bd43e4013164',
+    pharmacy: 'ac104461c3cb72100fa7bd43e4013197',
+    admin: '' // optional: admin sees all, or set to nurse/blank
+  };
+
+
   useEffect(() => {
+    
+    const nurseId = USER_ID_BY_ROLE.nurse;
+    setActiveUserId(nurseId);
     const urlParams = new URLSearchParams(window.location.search);
     const caseId = urlParams.get('sys_id');
     
     if (caseId) {
       setSelectedCaseId(caseId);
-      loadCaseData(caseId);
+      loadCaseData(caseId, nurseId);
     } else {
       // Load available cases for selection
       loadAvailableCases();
@@ -43,12 +58,25 @@ export default function CaseWorkspace() {
     }
   };
 
-  const loadCaseData = async (caseId) => {
+  const areAllTasksComplete = (tasks = []) => {
+    if (!tasks.length) return true; // no tasks => nothing to do => hide button
+    return tasks.every(t => String(t.state) === '3' || t.state_display === 'Closed Complete');
+  };
+
+
+  const loadCaseData = async (caseId, userIdParam = activeUserId) => {
     try {
       setLoading(true);
       setError(null);
       const data = await service.getCase(caseId);
       setCaseData(data);
+      // Load per-role task summary alongside case data
+      try {
+        const summary = await service.getTaskSummaryByCaseAndUser(caseId, userIdParam);
+        setTaskSummaryByRole(summary);
+      } catch (summaryErr) {
+        console.warn('Could not load task summary by role:', summaryErr);
+      }
     } catch (err) {
       setError(err.message);
       setCaseData(null);
@@ -79,16 +107,77 @@ export default function CaseWorkspace() {
           : caseData.summary.sys_id) 
         : null;
 
+      /* ============================================
+         SWITCH CASE TEMPLATE PATTERNS
+         ============================================
+         
+         Pattern 1: Simple action (no user input)
+         -----------------------------------------
+         case 'actionName':
+           result = await service.methodName(caseId);
+           break;
+         
+         Pattern 2: Action with user input
+         -----------------------------------------
+         case 'actionWithInput':
+           const userInput = prompt('Prompt message:');
+           if (userInput) {
+             result = await service.methodName(caseId, userInput);
+           }
+           break;
+         
+         Pattern 3: Action requiring summary
+         -----------------------------------------
+         case 'summaryAction':
+           if (summaryId) {
+             result = await service.methodName(summaryId);
+           }
+           break;
+         
+         Pattern 4: Action with multiple inputs
+         -----------------------------------------
+         case 'multiInputAction':
+           const input1 = prompt('First input:');
+           const input2 = prompt('Second input:');
+           if (input1 && input2) {
+             result = await service.methodName(caseId, input1, input2);
+           }
+           break;
+         
+         Pattern 5: Action with both caseId and summaryId
+         -----------------------------------------
+         case 'complexAction':
+           const userInput = prompt('Enter details:');
+           if (userInput && summaryId) {
+             result = await service.methodName(caseId, summaryId, userInput);
+           }
+           break;
+      ============================================ */
+
       switch (action) {
-        // Nursing actions
+        // ====================
+        // NURSING ACTIONS
+        // ====================
         case 'markReadyForDischarge':
           result = await service.markReadyForDischarge(caseId);
           break;
-        case 'completeDischargeTasks':
-          result = await service.completeDischargeTasks(caseId);
+        // OLD: completeDischargeTasks completed ALL tasks regardless of role.
+        // REPLACED with 3 per-role actions that call the server-side
+        // DischargeTaskService.completeTasksForUser() via REST API.
+        // Server enforces RBAC — returns 403 if user lacks the role.
+        case 'completeNurseTasks':
+          result = await service.completeTasksForUser(caseId, 'nurse');
+          break;
+        case 'completeDoctorTasks':
+          result = await service.completeTasksForUser(caseId, 'doctor');
+          break;
+        case 'completePharmacyTasks':
+          result = await service.completeTasksForUser(caseId, 'pharmacy');
           break;
           
-        // Doctor actions
+        // ====================
+        // DOCTOR ACTIONS
+        // ====================
         case 'requestSummaryReview':
           if (summaryId) {
             result = await service.requestSummaryReview(summaryId);
@@ -108,7 +197,9 @@ export default function CaseWorkspace() {
           }
           break;
           
-        // Pharmacy actions
+        // ====================
+        // PHARMACY ACTIONS
+        // ====================
         case 'markMedsReviewed':
           result = await service.markMedsReviewed(caseId);
           break;
@@ -122,7 +213,9 @@ export default function CaseWorkspace() {
           }
           break;
           
-        // Coordinator/Admin actions
+        // ====================
+        // COORDINATOR/ADMIN ACTIONS
+        // ====================
         case 'sendSummaryToGP':
           const gpEmail = prompt('Enter GP email address:');
           if (gpEmail && summaryId) {
@@ -157,6 +250,9 @@ export default function CaseWorkspace() {
           }
           break;
           
+        // ====================
+        // DEFAULT HANDLER
+        // ====================
         default:
           console.log(`Action not implemented: ${action}`);
       }
@@ -185,6 +281,8 @@ export default function CaseWorkspace() {
     return typeof field === 'object' ? field.display_value : field;
   };
 
+  const tasksForActiveUser = taskSummaryByRole?.tasks || [];
+  const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
   const getRoleActions = () => {
     if (!caseData) return [];
 
@@ -194,18 +292,33 @@ export default function CaseWorkspace() {
 
     const actions = [];
 
+    // ─── Per-role "Mark MY tasks complete" buttons ───────────────
+    // Each role only sees their own button. Admins see all three.
+    // Server-side RBAC is the real enforcement; UI hiding is courtesy.
+
+    // Helper: normalize status string for comparison (handles display_value casing)
+    const isReadyForDischarge = dischargeStatus && 
+      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'ready_for_discharge';
+
+    // If the case is already discharged, hide task-completion and
+    // "Mark Ready for Discharge" buttons for ALL roles.
+    const isDischarged = dischargeStatus &&
+      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
+
     if (userRole === 'nurse') {
-      if (dischargeStatus !== 'ready_for_discharge') {
+      // Only show "Mark Ready for Discharge" if NOT already ready and NOT discharged
+      if (!isReadyForDischarge && !isDischarged) {
         actions.push({
           label: 'Mark Ready for Discharge',
           action: 'markReadyForDischarge',
           variant: 'primary'
         });
       }
-      if (tasksComplete !== 'true') {
+      // Only show if there are open nurse tasks and case is NOT discharged
+      if (isReadyForDischarge && !hideMyTasksButton) {
         actions.push({
-          label: 'Complete Discharge Tasks',
-          action: 'completeDischargeTasks',
+          label: 'Nurse: Mark my tasks complete',
+          action: 'completeNurseTasks',
           variant: 'success'
         });
       }
@@ -233,29 +346,57 @@ export default function CaseWorkspace() {
           }
         );
       }
+      // Only show if there are open doctor tasks and case is NOT discharged
+      if (isReadyForDischarge && !hideMyTasksButton) {
+        actions.push({
+          label: 'Doctor: Mark my tasks complete',
+          action: 'completeDoctorTasks',
+          variant: 'success'
+        });
+      }
     }
 
     if (userRole === 'pharmacy') {
-      actions.push(
-        {
-          label: 'Mark Meds Reviewed',
-          action: 'markMedsReviewed',
-          variant: 'primary'
-        },
-        {
-          label: 'Mark Dispensed',
-          action: 'markMedsDispensed',
+       if (isReadyForDischarge && !hideMyTasksButton) {
+        actions.push(
+          {
+            label: 'Mark Meds Reviewed',
+            action: 'markMedsReviewed',
+            variant: 'primary'
+          },
+          {
+            label: 'Mark Dispensed',
+            action: 'markMedsDispensed',
+            variant: 'success'
+          },
+          {
+            label: 'Request Clarification',
+            action: 'requestMedClarification',
+            variant: 'warning'
+          }
+        );
+      }
+      // Only show if there are open pharmacy tasks and case is NOT discharged
+      if (isReadyForDischarge && !hideMyTasksButton) {
+        actions.push({
+          label: 'Pharmacy: Mark my tasks complete',
+          action: 'completePharmacyTasks',
           variant: 'success'
-        },
-        {
-          label: 'Request Clarification',
-          action: 'requestMedClarification',
-          variant: 'warning'
-        }
-      );
+        });
+      }
     }
 
-    if (userRole === 'coordinator' || userRole === 'admin') {
+    // Admin sees coordinator-level actions but NOT per-role task-complete
+    // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
+    if (userRole === 'admin') {
+      // Admin can still mark ready for discharge if not already done and NOT discharged
+      if (!isReadyForDischarge && !isDischarged) {
+        actions.push({
+          label: 'Mark Ready for Discharge',
+          action: 'markReadyForDischarge',
+          variant: 'primary'
+        });
+      }
       if (summaryStatus === 'clinician_approved') {
         actions.push(
           {
@@ -296,7 +437,16 @@ export default function CaseWorkspace() {
   // Role switching for demo purposes
   const switchRole = (newRole) => {
     setUserRole(newRole);
-  };
+
+    const newUserId = USER_ID_BY_ROLE[newRole] || '';
+    setActiveUserId(newUserId);
+
+    // refresh task data for the currently selected case
+    if (selectedCaseId) {
+      loadCaseData(selectedCaseId, newUserId);
+  }
+};
+
 
   // If no case is selected, show case selection interface
   if (!selectedCaseId && !loading) {
@@ -393,7 +543,21 @@ export default function CaseWorkspace() {
     return <div className="case-error">No case data available</div>;
   }
 
+
   const roleActions = getRoleActions();
+
+  const visibleRoleActions = roleActions.filter(a => {
+    // Hide the "complete my tasks" button if user has no open tasks for this case
+    if (hideMyTasksButton && (
+        a.action === 'completeNurseTasks' ||
+        a.action === 'completeDoctorTasks' ||
+        a.action === 'completePharmacyTasks'
+    )) {
+      return false;
+    }
+    return true;
+  });
+
 
   return (
     <div className="case-workspace">
@@ -419,11 +583,10 @@ export default function CaseWorkspace() {
                 <option value="nurse">Nurse</option>
                 <option value="doctor">Doctor</option>
                 <option value="pharmacy">Pharmacy</option>
-                <option value="coordinator">Coordinator</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
-            {roleActions.map((action, index) => (
+            {visibleRoleActions.map((action, index) => (
               <button
                 key={index}
                 className={`action-button ${action.variant}`}
@@ -548,7 +711,54 @@ export default function CaseWorkspace() {
           {activeTab === 'tasks' && (
             <div className="tab-panel">
               <h3>Related Discharge Tasks</h3>
-              {caseData.tasks.length > 0 ? (
+
+              {/* ─── Per-Role Task Summary Tiles ─── */}
+              {taskSummaryByRole && (
+                <div className="task-summary-by-role">
+                  {['nurse', 'doctor', 'pharmacy'].map(role => {
+                    const roleTasks = (caseData?.tasks || []).filter(
+                      t => String(t.assigned_to || '') === String(USER_ID_BY_ROLE[role])
+                    );
+                    const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
+
+                    if (roleTasks.length === 0) return null;
+
+                    const total = roleTasks.length;
+                    const open = roleTasks.filter(t => String(t.state) !== '3').length;
+                    const complete = total - open;
+
+                    const s = { total, open, complete };
+                    if (!s || s.total === 0) return null;
+                    const allDone = s.open === 0;
+                    const hideThisRoleButton = hideMyTasksButton && userRole === role;
+                    return (
+                      <div key={role} className={`role-task-tile ${allDone ? 'complete' : 'pending'}`}>
+                        <div className="role-task-tile-header">
+                          <strong>{role.charAt(0).toUpperCase() + role.slice(1)}</strong>
+                          <span className={`tasks-badge ${allDone ? 'complete' : 'incomplete'}`}>
+                            {allDone ? '\u2713 All Done' : `${s.open} open`}
+                          </span>
+                        </div>
+                        <div className="role-task-tile-body">
+                          <span>{s.complete}/{s.total} complete</span>
+                          {!hideThisRoleButton  && (userRole === role || userRole === 'admin') && (
+                            <button
+                              className="action-button success small"
+                              onClick={() => handleRoleAction(`complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`)}
+                              disabled={actionLoading}
+                            >
+                              {actionLoading ? 'Processing...' : `Mark ${role} tasks complete`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ─── Individual Task List ─── */}
+              {(caseData.tasks || []).length > 0 ? (
                 <div className="tasks-list">
                   {caseData.tasks.map((task, index) => (
                     <div key={index} className="task-item">
@@ -561,6 +771,11 @@ export default function CaseWorkspace() {
                       <div className="task-details">
                         <span>Assigned: {extractValue(task.assigned_to) || 'Unassigned'}</span>
                         <span>Due: {formatDate(task.due_date)}</span>
+                        {extractValue(task.u_provider_role) && (
+                          <span className={`role-badge role-${extractValue(task.u_provider_role)}`}>
+                            {extractValue(task.u_provider_role)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -649,7 +864,7 @@ export default function CaseWorkspace() {
                   </div>
                 )}
                 
-                {(userRole === 'coordinator' || userRole === 'admin') && (
+                {userRole === 'admin' && (
                   <div className="followup-actions">
                     <button onClick={() => handleRoleAction('scheduleFollowUp')} className="action-button info">
                       Schedule Follow-Up
@@ -692,7 +907,7 @@ export default function CaseWorkspace() {
                 <p>No communication log entries found.</p>
               )}
               
-              {(userRole === 'coordinator' || userRole === 'admin') && (
+              {userRole === 'admin' && (
                 <div className="comm-actions">
                   <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
                     Send Summary to GP
