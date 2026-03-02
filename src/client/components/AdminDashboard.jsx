@@ -224,9 +224,10 @@ export default function AdminDashboard({ onSwitchRole }) {
       ? caseItem.u_discharging_status.value 
       : caseItem.u_discharging_status;
     
-    const ward = typeof caseItem.u_ward === 'object' 
-      ? caseItem.u_ward.value 
-      : caseItem.u_ward;
+    const rawWard = typeof caseItem.u_ward === 'object' && caseItem.u_ward !== null
+      ? (caseItem.u_ward.display_value || caseItem.u_ward.value || '')
+      : (caseItem.u_ward || '');
+    const ward = String(rawWard).trim().toLowerCase().replace(/\s+/g, '_');
 
     const dueDate = typeof caseItem.u_due_date === 'object' 
       ? caseItem.u_due_date.value 
