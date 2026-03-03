@@ -3,6 +3,10 @@ import { DischargeCaseService } from '../services/DischargeCaseService.js';
 import Navigation from './Navigation.jsx';
 import './AdminDashboard.css';
 
+const ROLE_BY_USER_ID = Object.fromEntries(
+  Object.entries(DischargeCaseService.USER_ID_BY_ROLE).map(([role, id]) => [id, role])
+);
+
 export default function AdminDashboard({ onSwitchRole }) {
   const [adminData, setAdminData] = useState({ cases: [], stats: {}, exceptions: [] });
   const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
@@ -14,6 +18,11 @@ export default function AdminDashboard({ onSwitchRole }) {
     overdue: false,
     failedComms: false,
     missingFields: false
+  });
+  const [taskFilters, setTaskFilters] = useState({
+    role: '',
+    status: '',
+    mrn: ''
   });
   const [selectedView, setSelectedView] = useState('overview'); // overview, exceptions, communications
   const [currentView, setCurrentView] = useState('admin-center'); // admin-center, failed-communications, my-tasks
@@ -195,6 +204,15 @@ export default function AdminDashboard({ onSwitchRole }) {
     return typeof field === 'object' ? field.display_value : field;
   };
 
+  const deriveRole = (assignedTo) => {
+    const id = typeof assignedTo === 'object' ? (assignedTo.value ?? assignedTo.display_value ?? '') : (assignedTo ?? '');
+    return ROLE_BY_USER_ID[id] || null;
+  };
+
+  const handleTaskFilterChange = (filterName, value) => {
+    setTaskFilters(prev => ({ ...prev, [filterName]: value }));
+  };
+
   const getStatusBadge = (status) => {
     const statusValue = typeof status === 'object' ? status.value : status;
     const statusDisplay = typeof status === 'object' ? status.display_value : status;
@@ -242,6 +260,23 @@ export default function AdminDashboard({ onSwitchRole }) {
       const due = new Date(dueDate);
       if (due >= today) return false;
     }
+
+    return true;
+  });
+
+  const filteredTasks = myTasksData.tasks.filter(task => {
+    const derivedRole = deriveRole(task.assigned_to);
+    const state = typeof task.state === 'object' ? task.state.value : task.state;
+    const hospitalNumber = extractValue(task.hospital_number) || '';
+    const mrnFilter = taskFilters.mrn.toLowerCase();
+
+    if (taskFilters.role && derivedRole !== taskFilters.role) return false;
+    if (taskFilters.status) {
+      const isOpen = state !== '3';
+      if (taskFilters.status === 'open' && !isOpen) return false;
+      if (taskFilters.status === 'closed' && isOpen) return false;
+    }
+    if (mrnFilter && !hospitalNumber.toLowerCase().includes(mrnFilter)) return false;
 
     return true;
   });
@@ -298,6 +333,38 @@ export default function AdminDashboard({ onSwitchRole }) {
       {currentView === 'my-tasks' ? (
         /* ═══════════════ MY TASKS VIEW ═══════════════ */
         <div className="my-tasks-section">
+          <div className="cases-header">
+            <h2>My Tasks</h2>
+            <div className="case-filters">
+              <select
+                value={taskFilters.role}
+                onChange={(e) => handleTaskFilterChange('role', e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Roles</option>
+                <option value="doctor">Doctor</option>
+                <option value="nurse">Nurse</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select
+                value={taskFilters.status}
+                onChange={(e) => handleTaskFilterChange('status', e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Filter by MRN..."
+                value={taskFilters.mrn}
+                onChange={(e) => handleTaskFilterChange('mrn', e.target.value)}
+                className="filter-select"
+              />
+            </div>
+          </div>
           <div className="tasks-table-container">
             <table className="cases-table">
               <thead>
@@ -312,12 +379,13 @@ export default function AdminDashboard({ onSwitchRole }) {
                 </tr>
               </thead>
               <tbody>
-                {myTasksData.tasks.map((task, index) => {
+                {filteredTasks.map((task, index) => {
                   const taskDesc = extractValue(task.short_description);
                   const state = typeof task.state === 'object' ? task.state.value : task.state;
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
                   const priorityDisplay = extractValue(task.priority);
-                  const role = extractValue(task.u_provider_role);
+                  const derivedRole = deriveRole(task.assigned_to);
+                  const roleLabel = derivedRole ? derivedRole.charAt(0).toUpperCase() + derivedRole.slice(1) : '-';
                   const patientName = extractValue(task.patient_name);
                   const hospitalNumber = extractValue(task.hospital_number);
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
@@ -331,7 +399,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                         </div>
                       </td>
                       <td>{taskDesc || 'Task'}</td>
-                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
+                      <td><span className={`role-badge role-${derivedRole}`}>{roleLabel}</span></td>
                       <td>
                         <span className={`status-badge ${state === '3' ? 'status-discharged' : state === '2' ? 'status-ready' : 'status-draft'}`}>
                           {stateDisplay || 'New'}
@@ -346,11 +414,11 @@ export default function AdminDashboard({ onSwitchRole }) {
               </tbody>
             </table>
 
-            {myTasksData.tasks.length === 0 && (
+            {filteredTasks.length === 0 && (
               <div className="no-exceptions">
                 <div className="no-exceptions-icon">✅</div>
-                <h3>No tasks assigned to you</h3>
-                <p>You have no outstanding discharge tasks.</p>
+                <h3>No tasks found</h3>
+                <p>{myTasksData.tasks.length === 0 ? 'You have no outstanding discharge tasks.' : 'No tasks match the selected filters.'}</p>
               </div>
             )}
           </div>
