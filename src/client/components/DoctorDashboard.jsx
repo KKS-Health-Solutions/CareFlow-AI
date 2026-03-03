@@ -16,6 +16,27 @@ export default function DoctorDashboard({ onSwitchRole }) {
     loadViewData(currentView);
   }, [currentView]);
 
+  useEffect(() => {
+    if (currentView === 'my-tasks') return;
+
+    let isRefreshing = false;
+
+    const interval = setInterval(async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        const stats = await service.getDashboardStats();
+        setDoctorData(prev => ({ ...prev, stats }));
+      } catch (err) {
+        console.error('Failed to refresh doctor stats:', err);
+      } finally {
+        isRefreshing = false;
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentView]);
+
   const loadViewData = async (view) => {
     try {
       setLoading(true);

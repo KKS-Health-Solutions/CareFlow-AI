@@ -24,6 +24,27 @@ export default function AdminDashboard({ onSwitchRole }) {
     loadViewData(currentView);
   }, [currentView]);
 
+  useEffect(() => {
+    if (currentView === 'my-tasks') return;
+
+    let isRefreshing = false;
+
+    const interval = setInterval(async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        const stats = await service.getDashboardStats();
+        setAdminData(prev => ({ ...prev, stats: { ...prev.stats, ...stats } }));
+      } catch (err) {
+        console.error('Failed to refresh admin stats:', err);
+      } finally {
+        isRefreshing = false;
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentView]);
+
   const loadViewData = async (view) => {
     try {
       setLoading(true);
