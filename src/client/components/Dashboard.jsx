@@ -143,12 +143,16 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
     if (filters.readyForDischarge && dischargeStatus !== 'ready_for_discharge') return false;
     
     if (filters.overdue) {
+      if (!dueDate) return false;
+      if (dischargeStatus === 'discharged') return false;
       const today = new Date();
       const due = new Date(dueDate);
       if (due >= today) return false;
     }
     
     if (filters.followupDue) {
+      if (!dueDate) return false;
+      if (dischargeStatus === 'draft') return false;
       const today = new Date();
       const weekFromNow = new Date();
       weekFromNow.setDate(today.getDate() + 7);

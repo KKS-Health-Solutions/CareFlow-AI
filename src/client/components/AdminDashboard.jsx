@@ -256,6 +256,8 @@ export default function AdminDashboard({ onSwitchRole }) {
     if (filters.ward && ward !== filters.ward) return false;
     
     if (filters.overdue) {
+      if (!dueDate) return false;
+      if (dischargeStatus === 'discharged') return false;
       const today = new Date();
       const due = new Date(dueDate);
       if (due >= today) return false;

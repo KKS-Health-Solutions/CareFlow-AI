@@ -80,6 +80,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     }
     
     if (filters.overdue) {
+      if (!dueDate) return false;
       const today = new Date();
       const due = new Date(dueDate);
       if (due >= today) return false;
