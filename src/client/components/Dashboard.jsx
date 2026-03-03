@@ -30,6 +30,27 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
     loadViewData(currentView);
   }, [currentView]);
 
+  useEffect(() => {
+    if (currentView !== 'command-center') return;
+
+    let isRefreshing = false;
+
+    const interval = setInterval(async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        const stats = await service.getDashboardStats();
+        setDashboardData(prev => ({ ...prev, stats }));
+      } catch (err) {
+        console.error('Failed to refresh stats:', err);
+      } finally {
+        isRefreshing = false;
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentView]);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
