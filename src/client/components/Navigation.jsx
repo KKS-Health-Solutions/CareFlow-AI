@@ -79,12 +79,6 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             label: 'Nursing Checklist',
             icon: '👩‍⚕️',
             roles: ['nurse']
-          },
-          {
-            id: 'followups-due',
-            label: 'Follow-Ups Due',
-            icon: '📅',
-            roles: ['nurse']
           }
         ];
     }
