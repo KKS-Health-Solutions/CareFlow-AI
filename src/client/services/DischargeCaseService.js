@@ -687,6 +687,42 @@ export class DischargeCaseService {
       throw error;
     }
   }
+  /**
+   * Fetch the discharge summary for a given case via the Scripted REST API.
+   * Uses case sys_id — no patient name search required.
+   *
+   * @param {string} caseId - sys_id of the discharge case
+   * @returns {object|null} Summary data object, or null if not found
+   */
+  async getDischargeSummary(caseId) {
+    try {
+      const response = await fetch(
+        `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${caseId}/summary`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch discharge summary: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      return json.result.data;
+    } catch (error) {
+      console.error('Error fetching discharge summary:', error);
+      throw error;
+    }
+  }
+
   async requestSummaryReview(summaryId) {
     const result = await this.updateSummary(summaryId, { u_summary_status: 'ready_for_review' });
     return result;

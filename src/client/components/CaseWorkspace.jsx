@@ -283,6 +283,29 @@ export default function CaseWorkspace() {
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
+
+  /**
+   * Returns true when the discharge summary exists and has progressed past
+   * the initial draft stage, meaning it is ready to be opened/viewed.
+   * Reflects backend truth: button state mirrors actual summary status.
+   */
+  const isSummaryReady = () => {
+    if (!caseData?.summary) return false;
+    const status = extractValue(caseData.summary.u_summary_status);
+    return status === 'ready_for_review' || status === 'clinician_approved';
+  };
+
+  const openDischargeSummary = () => {
+    const summaryId = caseData?.summary
+      ? (typeof caseData.summary.sys_id === 'object'
+          ? caseData.summary.sys_id.value
+          : caseData.summary.sys_id)
+      : null;
+    if (summaryId) {
+      window.open(`/u_discharge_summary.do?sys_id=${summaryId}`, '_blank');
+    }
+  };
+
   const getRoleActions = () => {
     if (!caseData) return [];
 
@@ -788,9 +811,29 @@ export default function CaseWorkspace() {
 
           {activeTab === 'summary' && (
             <div className="tab-panel">
-              <h3>Discharge Summary</h3>
+              <div className="summary-tab-header">
+                <h3>Discharge Summary</h3>
+                <button
+                  className="action-button primary"
+                  onClick={openDischargeSummary}
+                  disabled={!isSummaryReady()}
+                  title={isSummaryReady() ? 'Open discharge summary record' : 'Summary is not yet ready'}
+                >
+                  Open Summary
+                </button>
+              </div>
               {caseData.summary ? (
                 <div className="summary-content">
+                  <div className="summary-status-banner">
+                    <span className={`status-badge status-${extractValue(caseData.summary.u_summary_status)}`}>
+                      Status: {extractValue(caseData.summary.u_summary_status) || 'Unknown'}
+                    </span>
+                    {!isSummaryReady() && (
+                      <span className="summary-not-ready-hint">
+                        Summary must be submitted for review before it can be opened.
+                      </span>
+                    )}
+                  </div>
                   <div className="summary-field">
                     <label>Clinical Summary:</label>
                     <div className="summary-text">{extractValue(caseData.summary.u_clinical_summary) || 'Not provided'}</div>

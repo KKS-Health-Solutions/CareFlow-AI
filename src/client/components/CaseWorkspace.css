@@ -472,6 +472,31 @@
   gap: 20px;
 }
 
+.summary-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.summary-tab-header h3 {
+  margin: 0;
+}
+
+.summary-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.summary-not-ready-hint {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
 .summary-field label {
   display: block;
   font-weight: 600;
