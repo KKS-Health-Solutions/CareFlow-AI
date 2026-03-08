@@ -68,16 +68,24 @@ export default function CaseWorkspace() {
     try {
       setLoading(true);
       setError(null);
+      console.log('Loading case data for:', caseId);
       const data = await service.getCase(caseId);
+      console.log('Case data loaded:', data);
+      console.log('Summary from getCase:', data.summary);
+      console.log('Summary type:', typeof data.summary);
+      console.log('Summary keys:', data.summary ? Object.keys(data.summary) : 'null');
       setCaseData(data);
+      
       // Load per-role task summary alongside case data
       try {
-        const summary = await service.getTaskSummaryByCaseAndUser(caseId, userIdParam);
+        const summary = await service.getTaskSummaryByRole(caseId);
+        console.log('Task summary loaded:', summary);
         setTaskSummaryByRole(summary);
       } catch (summaryErr) {
         console.warn('Could not load task summary by role:', summaryErr);
       }
     } catch (err) {
+      console.error('Error loading case data:', err);
       setError(err.message);
       setCaseData(null);
     } finally {
@@ -283,7 +291,11 @@ export default function CaseWorkspace() {
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
+<<<<<<< Updated upstream
 
+=======
+  
+>>>>>>> Stashed changes
   /**
    * Returns true when the discharge summary exists and has progressed past
    * the initial draft stage, meaning it is ready to be opened/viewed.
@@ -824,6 +836,7 @@ export default function CaseWorkspace() {
               </div>
               {caseData.summary ? (
                 <div className="summary-content">
+<<<<<<< Updated upstream
                   <div className="summary-status-banner">
                     <span className={`status-badge status-${extractValue(caseData.summary.u_summary_status)}`}>
                       Status: {extractValue(caseData.summary.u_summary_status) || 'Unknown'}
@@ -834,25 +847,32 @@ export default function CaseWorkspace() {
                       </span>
                     )}
                   </div>
+=======
+                  <div className="summary-header">
+                    <div className="summary-status-info">
+                      <span className="summary-label">Status:</span>
+                      <span className={`status-badge status-${extractValue(caseData.summary.u_summary_status)}`}>
+                        {extractValue(caseData.summary.u_summary_status) || 'Draft'}
+                      </span>
+                    </div>
+                    {caseData.summary.u_approved_on && (
+                      <div className="summary-approval-info">
+                        <span className="summary-label">Approved:</span>
+                        <span>{formatDate(caseData.summary.u_approved_on)}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+>>>>>>> Stashed changes
                   <div className="summary-field">
                     <label>Clinical Summary:</label>
-                    <div className="summary-text">{extractValue(caseData.summary.u_clinical_summary) || 'Not provided'}</div>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_clinical_summary) || 'No clinical summary available'}
+                    </div>
                   </div>
-                  <div className="summary-field">
-                    <label>Diagnosis:</label>
-                    <div className="summary-text">{extractValue(caseData.summary.u_diagnosis) || 'Not provided'}</div>
-                  </div>
-                  <div className="summary-field">
-                    <label>Medications on Discharge:</label>
-                    <div className="summary-text">{extractValue(caseData.summary.u_medications_on_discharge) || 'Not provided'}</div>
-                  </div>
-                  <div className="summary-field">
-                    <label>Follow-up Instructions:</label>
-                    <div className="summary-text">{extractValue(caseData.summary.u_follow_up_instructions) || 'Not provided'}</div>
-                  </div>
-                  <div className="summary-field">
-                    <label>GP Notes:</label>
-                    <div className="summary-text">{extractValue(caseData.summary.u_gp_notes) || 'Not provided'}</div>
+                  
+                  <div className="summary-footer">
+                    <small>Last updated: {formatDate(caseData.summary.sys_updated_on)}</small>
                   </div>
                 </div>
               ) : (
