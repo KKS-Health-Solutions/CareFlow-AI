@@ -53,7 +53,7 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
           },
           {
             id: 'my-tasks',
-            label: 'My Tasks',
+            label: 'Discharge Tasks',
             icon: '📋',
             roles: ['admin']
           }

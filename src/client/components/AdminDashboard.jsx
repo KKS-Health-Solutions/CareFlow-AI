@@ -336,7 +336,7 @@ export default function AdminDashboard({ onSwitchRole }) {
         /* ═══════════════ MY TASKS VIEW ═══════════════ */
         <div className="my-tasks-section">
           <div className="cases-header">
-            <h2>My Tasks</h2>
+            <h2>All Discharge Tasks</h2>
             <div className="case-filters">
               <select
                 value={taskFilters.role}
@@ -532,7 +532,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                   <th>Patient</th>
                   <th>Ward</th>
                   <th>Status</th>
-                  <th>Due Date</th>
+                  <th>Follow-up Due Date</th>
                   <th>Risk Level</th>
                   <th>Last Updated</th>
                   <th>Actions</th>
