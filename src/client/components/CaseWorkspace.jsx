@@ -78,7 +78,7 @@ export default function CaseWorkspace() {
       
       // Load per-role task summary alongside case data
       try {
-        const summary = await service.getTaskSummaryByRole(caseId);
+        const summary = await service.getTaskSummaryByCaseAndUser(caseId, userIdParam);
         console.log('Task summary loaded:', summary);
         setTaskSummaryByRole(summary);
       } catch (summaryErr) {
