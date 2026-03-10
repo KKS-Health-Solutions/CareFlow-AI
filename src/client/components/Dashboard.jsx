@@ -16,8 +16,7 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
     ward: '',
     assignedToMe: false,
     overdue: false,
-    readyForDischarge: false,
-    followupDue: false
+    readyForDischarge: false
   });
 
   const service = new DischargeCaseService();
@@ -88,8 +87,7 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
       ward: '',
       assignedToMe: false,
       overdue: false,
-      readyForDischarge: false,
-      followupDue: false
+      readyForDischarge: false
     });
   };
 
@@ -124,6 +122,10 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
       ? caseItem.u_due_date.value 
       : caseItem.u_due_date;
 
+    const dischargeDate = typeof caseItem.u_discharge_date === 'object'
+      ? caseItem.u_discharge_date.value
+      : caseItem.u_discharge_date;
+
     // Apply view-specific filters
     if (currentView === 'nursing-checklist') {
       if (dischargeStatus !== 'draft' && dischargeStatus !== 'ready_for_discharge') return false;
@@ -143,17 +145,11 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
     if (filters.readyForDischarge && dischargeStatus !== 'ready_for_discharge') return false;
     
     if (filters.overdue) {
+      if (!dischargeDate) return false;
+      if (dischargeStatus === 'discharged') return false;
       const today = new Date();
-      const due = new Date(dueDate);
-      if (due >= today) return false;
-    }
-    
-    if (filters.followupDue) {
-      const today = new Date();
-      const weekFromNow = new Date();
-      weekFromNow.setDate(today.getDate() + 7);
-      const due = new Date(dueDate);
-      if (due < today || due > weekFromNow) return false;
+      const discharge = new Date(dischargeDate);
+      if (discharge >= today) return false;
     }
 
     return true;

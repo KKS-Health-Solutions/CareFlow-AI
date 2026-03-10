@@ -93,15 +93,6 @@ export default function DischargeTable({ cases, onFilterChange, filters }) {
             />
             Ready for Discharge
           </label>
-
-          <label className="filter-checkbox">
-            <input 
-              type="checkbox" 
-              checked={filters.followupDue}
-              onChange={(e) => handleFilterChange('followupDue', e.target.checked)}
-            />
-            Follow-up Due
-          </label>
         </div>
       </div>
 
