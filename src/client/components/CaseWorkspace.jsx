@@ -655,7 +655,7 @@ export default function CaseWorkspace() {
             { id: 'overview', label: 'Overview' },
             { id: 'tasks', label: 'Tasks' },
             { id: 'summary', label: 'Discharge Summary' },
-            { id: 'pharmacy', label: 'Pharmacy' },
+            ...(userRole === 'pharmacy' ? [{ id: 'pharmacy', label: 'Pharmacy' }] : []),
             { id: 'followup', label: 'Follow-Up Plan' },
             { id: 'communications', label: 'Communication Log' }
           ].map(tab => (
