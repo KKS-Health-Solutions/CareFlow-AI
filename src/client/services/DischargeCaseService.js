@@ -226,8 +226,8 @@ export class DischargeCaseService {
 
       const response = await fetch(
         `/api/now/table/${this.dischargeTaskTable}?sysparm_display_value=all&sysparm_limit=100&sysparm_fields=sys_id,short_description,state,priority,due_date,assigned_to,u_discharge_case,sys_updated_on`,
-        { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
-      );
+        { headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
+      });
 
       const { result: tasks } = await response.json();
 
@@ -270,8 +270,8 @@ export class DischargeCaseService {
       if (caseIds.length > 0) {
         const casesResponse = await fetch(
           `/api/now/table/${this.dischargeCaseTable}?sysparm_query=sys_idIN${caseIds.join(',')}&sysparm_display_value=all&sysparm_fields=sys_id,u_patient_name,u_hospital_number,u_ward,u_discharge_date,u_discharging_status,u_due_date,u_risk_level,u_tasks_complete,sys_updated_on`,
-          { headers: { "Accept": "application/json", "X-UserToken": window.g_ck } }
-        );
+          { headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
+        });
         const casesData = await casesResponse.json();
         cases = casesData.result || [];
       }
@@ -434,12 +434,55 @@ export class DischargeCaseService {
 
       const { result } = await response.json();
       
-      const summaryResponse = await fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_discharge_case=${sysId}&sysparm_display_value=all&sysparm_limit=1`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
+      // Check discharge status - only fetch summary if patient is discharged
+      const dischargeStatus = typeof result.u_discharging_status === 'object' 
+        ? result.u_discharging_status.value 
+        : result.u_discharging_status;
       
-      const summaryData = await summaryResponse.json();
-      const summary = summaryData.result?.[0] || null;
+      const isDischargedStatus = dischargeStatus && 
+        dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
+      
+      // Fetch discharge summary only if the case is discharged
+      let summary = null;
+      if (isDischargedStatus) {
+        try {
+          const summaryResponse = await fetch(
+            `/api/728557/get_discharge_summary/discharge_case/${sysId}/summary`,
+            {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'X-UserToken': window.g_ck
+              }
+            }
+          );
+
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            
+            // Handle double-nested result structure: result.result.data
+            // ServiceNow wraps the API response in an extra 'result' level
+            let actualData = summaryData;
+            
+            // Check if we have double-nested result
+            if (summaryData.result && summaryData.result.result) {
+              actualData = summaryData.result;
+            }
+            
+            // Extract the data from the result structure
+            if (actualData.result && actualData.result.status === 'success') {
+              summary = actualData.result.data;
+            } else if (actualData.result && actualData.result.status === 'not_found') {
+              console.warn('⚠️ Case is discharged but no summary found. Summary may need to be created.');
+            }
+          } else if (summaryResponse.status === 404) {
+            console.warn('⚠️ Case is discharged but no summary found (404). Summary may need to be created.');
+          }
+        } catch (summaryErr) {
+          console.error('Error fetching discharge summary:', summaryErr);
+        }
+      }
+      // If not discharged, we skip fetching the summary entirely (no logs, no API call)
 
       const tasksResponse = await fetch(`/api/now/table/${this.dischargeTaskTable}?sysparm_query=u_discharge_case=${sysId}&sysparm_display_value=all`, {
         headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
@@ -684,6 +727,53 @@ export class DischargeCaseService {
             };
     } catch (error) {
       console.error('Error fetching task summary by role:', error);
+      throw error;
+    }
+  }
+  /**
+   * Fetch the discharge summary for a given case via the Scripted REST API.
+   * Uses case sys_id — no patient name search required.
+   *
+   * @param {string} caseId - sys_id of the discharge case
+   * @returns {object|null} Summary data object, or null if not found
+   */
+  async getDischargeSummary(caseId) {
+    try {
+      // Use the correct API endpoint
+      const response = await fetch(
+        `/api/728557/get_discharge_summary/discharge_case/${caseId}/summary`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (response.status === 404) {
+        console.warn('No discharge summary found for case:', caseId);
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch discharge summary: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      
+      // Handle the nested result structure from the API
+      if (json.result && json.result.status === 'success') {
+        return json.result.data;
+      }
+      
+      if (json.result && json.result.status === 'not_found') {
+        return null;
+      }
+      
+      return json.result.data || null;
+    } catch (error) {
+      console.error('Error fetching discharge summary:', error);
       throw error;
     }
   }
