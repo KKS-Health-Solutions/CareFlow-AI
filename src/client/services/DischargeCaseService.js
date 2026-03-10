@@ -311,7 +311,7 @@ export class DischargeCaseService {
 
   async getNursingQueue() {
     try {
-      const response = await fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_discharging_status=draft^ORu_discharging_status=ready_for_discharge&sysparm_display_value=all&sysparm_limit=50`, {
+      const response = await fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_discharging_status=draft&sysparm_display_value=all&sysparm_limit=50`, {
         headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
       });
 

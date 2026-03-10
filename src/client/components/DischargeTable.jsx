@@ -51,7 +51,7 @@ export default function DischargeTable({ cases, onFilterChange, filters, viewTyp
       <div className="table-header">
         <h2>Discharge Cases</h2>
         <div className="table-filters">
-          {viewType !== 'my-tasks' && (
+          {viewType !== 'my-tasks' && viewType !== 'nursing-checklist' && (
             <select 
               value={filters.status} 
               onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -78,16 +78,18 @@ export default function DischargeTable({ cases, onFilterChange, filters, viewTyp
             <option value="orthopedics">Orthopedics</option>
           </select>
 
-          <label className="filter-checkbox">
-            <input 
-              type="checkbox" 
-              checked={filters.overdue}
-              onChange={(e) => handleFilterChange('overdue', e.target.checked)}
-            />
-            Overdue
-          </label>
+          {viewType !== 'my-tasks' && viewType !== 'nursing-checklist' && (
+            <label className="filter-checkbox">
+              <input 
+                type="checkbox" 
+                checked={filters.overdue}
+                onChange={(e) => handleFilterChange('overdue', e.target.checked)}
+              />
+              Overdue
+            </label>
+          )}
 
-          {viewType !== 'my-tasks' && (
+          {viewType !== 'my-tasks' && viewType !== 'nursing-checklist' && (
             <label className="filter-checkbox">
               <input 
                 type="checkbox" 
@@ -160,7 +162,7 @@ export default function DischargeTable({ cases, onFilterChange, filters, viewTyp
         
         {cases.length === 0 && (
           <div className="no-data">
-            <p>No discharge cases found matching the current filters.</p>
+            <p>{viewType === 'nursing-checklist' ? 'No draft discharge cases found.' : 'No discharge cases found matching the current filters.'}</p>
           </div>
         )}
       </div>
