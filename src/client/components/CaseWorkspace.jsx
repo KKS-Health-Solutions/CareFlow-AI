@@ -27,22 +27,22 @@ export default function CaseWorkspace() {
 
 
   useEffect(() => {
-    
-    const nurseId = USER_ID_BY_ROLE.nurse;
-    setActiveUserId(nurseId);
     const urlParams = new URLSearchParams(window.location.search);
     const caseId = urlParams.get('sys_id');
-    
+    const roleParam = urlParams.get('role') || 'nurse';
+
+    const resolvedRole = USER_ID_BY_ROLE[roleParam] !== undefined ? roleParam : 'nurse';
+    const userId = USER_ID_BY_ROLE[resolvedRole];
+    setUserRole(resolvedRole);
+    setActiveUserId(userId);
+
     if (caseId) {
       setSelectedCaseId(caseId);
-      loadCaseData(caseId, nurseId);
+      loadCaseData(caseId, userId);
     } else {
       // Load available cases for selection
       loadAvailableCases();
     }
-    
-    // In a real implementation, get user role from ServiceNow context
-    // setUserRole(window.NOW?.user?.roles?.[0] || 'nurse');
   }, []);
 
   const loadAvailableCases = async () => {

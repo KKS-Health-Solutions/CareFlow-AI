@@ -12,12 +12,6 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             label: 'Pharmacy Inbox',
             icon: '💊',
             roles: ['pharmacy']
-          },
-          {
-            id: 'my-tasks',
-            label: 'My Tasks',
-            icon: '📋',
-            roles: ['pharmacy']
           }
         ];
       

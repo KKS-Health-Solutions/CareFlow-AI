@@ -1,7 +1,7 @@
 import React from 'react';
 import './DischargeTable.css';
 
-export default function DischargeTable({ cases, onFilterChange, filters, viewType }) {
+export default function DischargeTable({ cases, onFilterChange, filters, viewType, role = 'nurse' }) {
   const handleFilterChange = (filterName, value) => {
     onFilterChange({
       ...filters,
@@ -43,7 +43,7 @@ export default function DischargeTable({ cases, onFilterChange, filters, viewTyp
 
   const handleCaseClick = (caseItem) => {
     const sysId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
-    window.open(`/patient_discharge_case.do?sys_id=${sysId}`, '_blank');
+    window.open(`/patient_discharge_case.do?sys_id=${sysId}&role=${role}`, '_blank');
   };
 
   return (

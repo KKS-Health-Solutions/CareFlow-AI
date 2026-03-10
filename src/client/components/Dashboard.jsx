@@ -241,6 +241,7 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
                 onFilterChange={handleFilterChange}
                 filters={filters}
                 viewType={currentView}
+                role="nurse"
               />
             </div>
             

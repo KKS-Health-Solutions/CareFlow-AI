@@ -5,7 +5,6 @@ import './PharmacyDashboard.css';
 
 export default function PharmacyDashboard({ onSwitchRole }) {
   const [pharmacyData, setPharmacyData] = useState({ tasks: [], stats: {} });
-  const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('pharmacy-inbox');
@@ -25,13 +24,8 @@ export default function PharmacyDashboard({ onSwitchRole }) {
   const loadViewData = async (view) => {
     try {
       setLoading(true);
-      if (view === 'my-tasks') {
-        const data = await service.getMyTasks('pharmacy');
-        setMyTasksData(data);
-      } else {
-        const data = await service.getPharmacyTasks();
-        setPharmacyData(data);
-      }
+      const data = await service.getPharmacyTasks();
+      setPharmacyData(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -58,7 +52,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     
     if (caseId) {
       // Use the existing case workspace page
-      window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank');
+      window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=pharmacy`, '_blank');
     } else {
       alert('No related discharge case found for this task.');
     }
@@ -178,71 +172,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
         </div>
       </div>
 
-      {currentView === 'my-tasks' ? (
-        /* ═══════════════ MY TASKS VIEW ═══════════════ */
-        <div className="my-tasks-section">
-          <div className="tasks-table-container">
-            <table className="tasks-table">
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Task</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Priority</th>
-                  <th>Due Date</th>
-                  <th>Last Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myTasksData.tasks.map((task, index) => {
-                  const taskDesc = extractValue(task.short_description);
-                  const state = typeof task.state === 'object' ? task.state.value : task.state;
-                  const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
-                  const priorityDisplay = extractValue(task.priority);
-                  const role = extractValue(task.u_provider_role);
-                  const patientName = extractValue(task.patient_name);
-                  const hospitalNumber = extractValue(task.hospital_number);
-                  const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
-
-                  return (
-                    <tr key={index} className="task-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
-                      <td>
-                        <div className="patient-info">
-                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
-                          {hospitalNumber && <span className="hospital-number">#{hospitalNumber}</span>}
-                        </div>
-                      </td>
-                      <td>{taskDesc || 'Task'}</td>
-                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
-                      <td>
-                        <span className={`state-badge ${state === '3' ? 'state-complete' : state === '2' ? 'state-progress' : 'state-new'}`}>
-                          {stateDisplay || 'New'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`priority-badge ${getPriorityColor(task.priority)}`}>
-                          {priorityDisplay || 'Normal'}
-                        </span>
-                      </td>
-                      <td>{formatDate(task.due_date)}</td>
-                      <td>{formatDate(task.sys_updated_on)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {myTasksData.tasks.length === 0 && (
-              <div className="no-tasks">
-                <div className="no-tasks-icon">✅</div>
-                <h3>No tasks assigned to you</h3>
-                <p>You have no outstanding discharge tasks.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
+      {
         /* ═══════════════ PHARMACY INBOX VIEW ═══════════════ */
         <React.Fragment>
 
@@ -279,14 +209,6 @@ export default function PharmacyDashboard({ onSwitchRole }) {
             <label className="filter-checkbox">
               <input 
                 type="checkbox" 
-                checked={filters.assignedToMe}
-                onChange={(e) => handleFilterChange('assignedToMe', e.target.checked)}
-              />
-              Assigned to me
-            </label>
-            <label className="filter-checkbox">
-              <input 
-                type="checkbox" 
                 checked={filters.open}
                 onChange={(e) => handleFilterChange('open', e.target.checked)}
               />
@@ -316,18 +238,14 @@ export default function PharmacyDashboard({ onSwitchRole }) {
             <thead>
               <tr>
                 <th>Patient</th>
-                <th>Case</th>
                 <th>Task Type</th>
                 <th>Status</th>
-                <th>Priority</th>
                 <th>Due Date</th>
-                <th>Assigned To</th>
                 <th>Last Updated</th>
               </tr>
             </thead>
             <tbody>
               {filteredTasks.map((task, index) => {
-                const dischargeCase = extractValue(task.u_discharge_case);
                 const patientName = extractValue(task.patient_name) || 'Unknown Patient';
                 const taskDescription = extractValue(task.short_description);
                 
@@ -338,7 +256,6 @@ export default function PharmacyDashboard({ onSwitchRole }) {
                         <span className="patient-name">{patientName}</span>
                       </div>
                     </td>
-                    <td>{dischargeCase || '-'}</td>
                     <td>
                       <div className="task-type">
                         <span className="task-icon">{getTaskTypeIcon(taskDescription)}</span>
@@ -350,13 +267,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
                         {extractValue(task.state) || 'New'}
                       </span>
                     </td>
-                    <td>
-                      <span className={`priority-badge ${getPriorityColor(task.priority)}`}>
-                        {extractValue(task.priority) || 'Normal'}
-                      </span>
-                    </td>
                     <td>{formatDate(task.due_date)}</td>
-                    <td>{extractValue(task.assigned_to) || 'Unassigned'}</td>
                     <td>{formatDate(task.sys_updated_on)}</td>
                   </tr>
                 );
@@ -374,7 +285,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
         </div>
       </div>
       </React.Fragment>
-      )}
+      }
     </div>
       </div>
     </div>
