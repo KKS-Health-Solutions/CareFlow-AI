@@ -1,7 +1,7 @@
 import React from 'react';
 import './DischargeTable.css';
 
-export default function DischargeTable({ cases, onFilterChange, filters }) {
+export default function DischargeTable({ cases, onFilterChange, filters, viewType }) {
   const handleFilterChange = (filterName, value) => {
     onFilterChange({
       ...filters,
@@ -51,16 +51,18 @@ export default function DischargeTable({ cases, onFilterChange, filters }) {
       <div className="table-header">
         <h2>Discharge Cases</h2>
         <div className="table-filters">
-          <select 
-            value={filters.status} 
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="ready_for_discharge">Ready for Discharge</option>
-            <option value="discharged">Discharged</option>
-          </select>
+          {viewType !== 'my-tasks' && (
+            <select 
+              value={filters.status} 
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="filter-select"
+            >
+              <option value="">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="ready_for_discharge">Ready for Discharge</option>
+              <option value="discharged">Discharged</option>
+            </select>
+          )}
           
           <select 
             value={filters.ward} 
@@ -85,14 +87,16 @@ export default function DischargeTable({ cases, onFilterChange, filters }) {
             Overdue
           </label>
 
-          <label className="filter-checkbox">
-            <input 
-              type="checkbox" 
-              checked={filters.readyForDischarge}
-              onChange={(e) => handleFilterChange('readyForDischarge', e.target.checked)}
-            />
-            Ready for Discharge
-          </label>
+          {viewType !== 'my-tasks' && (
+            <label className="filter-checkbox">
+              <input 
+                type="checkbox" 
+                checked={filters.readyForDischarge}
+                onChange={(e) => handleFilterChange('readyForDischarge', e.target.checked)}
+              />
+              Ready for Discharge
+            </label>
+          )}
         </div>
       </div>
 

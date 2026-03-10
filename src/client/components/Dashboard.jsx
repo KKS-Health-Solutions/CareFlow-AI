@@ -22,10 +22,6 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
   const service = new DischargeCaseService();
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  useEffect(() => {
     loadViewData(currentView);
   }, [currentView]);
 

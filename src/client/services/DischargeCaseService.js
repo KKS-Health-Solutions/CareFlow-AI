@@ -256,7 +256,9 @@ export class DischargeCaseService {
         }
 
         if (providerRole === 'nurse') {
-          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.nurse;
+          const taskState = extractField(task.state);
+          const isIncomplete = taskState !== '3' && taskState !== 'Closed Complete';
+          return assignedTo(task) === DischargeCaseService.USER_ID_BY_ROLE.nurse && isIncomplete;
         }
 
         return assignedTo(task) === currentUser;
@@ -274,6 +276,16 @@ export class DischargeCaseService {
         });
         const casesData = await casesResponse.json();
         cases = casesData.result || [];
+
+        // For nurses, only surface cases that are ready for discharge
+        if (providerRole === 'nurse') {
+          cases = cases.filter(c => {
+            const status = typeof c.u_discharging_status === 'object'
+              ? c.u_discharging_status.value
+              : c.u_discharging_status;
+            return status === 'ready_for_discharge';
+          });
+        }
       }
 
       const enrichedTasks = filteredTasks.map(task => {
