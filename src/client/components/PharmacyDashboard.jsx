@@ -10,7 +10,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
   const [currentView, setCurrentView] = useState('pharmacy-inbox');
   const [filters, setFilters] = useState({
     assignedToMe: false,
-    open: false,
+    open: true,
     dueToday: false,
     overdue: false
   });
@@ -65,7 +65,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     
     // Apply filters
     if (filters.assignedToMe && assignedTo !== 'current_user') return false; // In real app, check against actual user
-    if (filters.open && state !== '2') return false; // State 2 = Work in Progress
+    if (filters.open && state !== '1' && state !== '2') return false; // State 1 = New, 2 = Work in Progress
     
     if (filters.dueToday) {
       const today = new Date().toISOString().split('T')[0];

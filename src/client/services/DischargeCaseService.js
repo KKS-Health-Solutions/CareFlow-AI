@@ -109,9 +109,15 @@ export class DischargeCaseService {
   }
 
   calculatePharmacyStats(tasks) {
-    const today = new Date().toISOString().split('T')[0];
-    const todayDate = new Date();
-    
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const getDateStr = (dueDate) => {
+      if (!dueDate) return null;
+      // Handle both "2026-03-10T..." and "2026-03-10 ..." formats
+      return dueDate.replace('T', ' ').substring(0, 10);
+    };
+
     return {
       openTasks: tasks.filter(task => {
         const state = typeof task.state === 'object' ? task.state.value : task.state;
@@ -119,16 +125,19 @@ export class DischargeCaseService {
       }).length,
       
       dueToday: tasks.filter(task => {
+        const state = typeof task.state === 'object' ? task.state.value : task.state;
+        if (state !== '1' && state !== '2') return false; // only count open tasks
         const dueDate = typeof task.due_date === 'object' ? task.due_date.value : task.due_date;
-        if (!dueDate) return false;
-        return dueDate.split('T')[0] === today;
+        return getDateStr(dueDate) === today;
       }).length,
       
       overdue: tasks.filter(task => {
+        const state = typeof task.state === 'object' ? task.state.value : task.state;
+        if (state !== '1' && state !== '2') return false; // only count open tasks as overdue
         const dueDate = typeof task.due_date === 'object' ? task.due_date.value : task.due_date;
-        if (!dueDate) return false;
-        const due = new Date(dueDate);
-        return due < todayDate;
+        const dateStr = getDateStr(dueDate);
+        if (!dateStr) return false;
+        return dateStr < today; // strictly before today, excludes today
       }).length
     };
   }

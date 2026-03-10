@@ -390,16 +390,6 @@ export default function CaseWorkspace() {
        if (isReadyForDischarge && !hideMyTasksButton) {
         actions.push(
           {
-            label: 'Mark Meds Reviewed',
-            action: 'markMedsReviewed',
-            variant: 'primary'
-          },
-          {
-            label: 'Mark Dispensed',
-            action: 'markMedsDispensed',
-            variant: 'success'
-          },
-          {
             label: 'Request Clarification',
             action: 'requestMedClarification',
             variant: 'warning'
