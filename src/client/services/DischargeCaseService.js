@@ -739,14 +739,9 @@ export class DischargeCaseService {
    */
   async getDischargeSummary(caseId) {
     try {
-<<<<<<< Updated upstream
-      const response = await fetch(
-        `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${caseId}/summary`,
-=======
       // Use the correct API endpoint
       const response = await fetch(
         `/api/728557/get_discharge_summary/discharge_case/${caseId}/summary`,
->>>>>>> Stashed changes
         {
           method: 'GET',
           headers: {
@@ -757,10 +752,7 @@ export class DischargeCaseService {
       );
 
       if (response.status === 404) {
-<<<<<<< Updated upstream
-=======
         console.warn('No discharge summary found for case:', caseId);
->>>>>>> Stashed changes
         return null;
       }
 
@@ -769,9 +761,6 @@ export class DischargeCaseService {
       }
 
       const json = await response.json();
-<<<<<<< Updated upstream
-      return json.result.data;
-=======
       
       // Handle the nested result structure from the API
       if (json.result && json.result.status === 'success') {
@@ -783,16 +772,11 @@ export class DischargeCaseService {
       }
       
       return json.result.data || null;
->>>>>>> Stashed changes
     } catch (error) {
       console.error('Error fetching discharge summary:', error);
       throw error;
     }
   }
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
   async requestSummaryReview(summaryId) {
     const result = await this.updateSummary(summaryId, { u_summary_status: 'ready_for_review' });
     return result;

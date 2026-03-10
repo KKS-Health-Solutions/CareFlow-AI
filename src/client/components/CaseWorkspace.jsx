@@ -291,11 +291,6 @@ export default function CaseWorkspace() {
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
-<<<<<<< Updated upstream
-
-=======
-  
->>>>>>> Stashed changes
   /**
    * Returns true when the discharge summary exists and has progressed past
    * the initial draft stage, meaning it is ready to be opened/viewed.
@@ -836,18 +831,6 @@ export default function CaseWorkspace() {
               </div>
               {caseData.summary ? (
                 <div className="summary-content">
-<<<<<<< Updated upstream
-                  <div className="summary-status-banner">
-                    <span className={`status-badge status-${extractValue(caseData.summary.u_summary_status)}`}>
-                      Status: {extractValue(caseData.summary.u_summary_status) || 'Unknown'}
-                    </span>
-                    {!isSummaryReady() && (
-                      <span className="summary-not-ready-hint">
-                        Summary must be submitted for review before it can be opened.
-                      </span>
-                    )}
-                  </div>
-=======
                   <div className="summary-header">
                     <div className="summary-status-info">
                       <span className="summary-label">Status:</span>
@@ -863,7 +846,6 @@ export default function CaseWorkspace() {
                     )}
                   </div>
                   
->>>>>>> Stashed changes
                   <div className="summary-field">
                     <label>Clinical Summary:</label>
                     <div className="clinical-summary-text">
