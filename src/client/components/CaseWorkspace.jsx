@@ -31,7 +31,7 @@ export default function CaseWorkspace() {
     const caseId = urlParams.get('sys_id');
     const roleParam = urlParams.get('role') || 'nurse';
 
-    const resolvedRole = USER_ID_BY_ROLE[roleParam] !== undefined ? roleParam : 'nurse';
+    const resolvedRole = Object.prototype.hasOwnProperty.call(USER_ID_BY_ROLE, roleParam) ? roleParam : 'nurse';
     const userId = USER_ID_BY_ROLE[resolvedRole];
     setUserRole(resolvedRole);
     setActiveUserId(userId);

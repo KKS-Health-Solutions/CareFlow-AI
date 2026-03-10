@@ -143,7 +143,7 @@ export default function AdminDashboard({ onSwitchRole }) {
   const handleCaseClick = (caseItem) => {
     const caseId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
     // Use the existing case workspace page
-    window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank');
+    window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=admin`, '_blank');
   };
 
   const handleAdminAction = async (action, caseItem) => {
@@ -392,7 +392,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
 
                   return (
-                    <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}`, '_blank')}>
+                    <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=admin`, '_blank')}>
                       <td>
                         <div className="patient-info">
                           <span className="patient-name">{patientName || 'Unknown Patient'}</span>
