@@ -63,12 +63,6 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
       default:
         return [
           {
-            id: 'command-center',
-            label: 'Command Center',
-            icon: '🏥',
-            roles: ['nurse']
-          },
-          {
             id: 'my-tasks',
             label: 'My Tasks',
             icon: '📋',

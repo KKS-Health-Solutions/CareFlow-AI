@@ -10,7 +10,7 @@ export default function Dashboard({ userRole = 'nurse', onSwitchRole, onCreatePa
   const [dashboardData, setDashboardData] = useState({ cases: [], stats: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentView, setCurrentView] = useState('command-center');
+  const [currentView, setCurrentView] = useState('my-tasks');
   const [filters, setFilters] = useState({
     status: '',
     ward: '',
