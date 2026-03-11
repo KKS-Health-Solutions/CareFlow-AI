@@ -653,10 +653,10 @@ export default function CaseWorkspace() {
         <div className="tab-nav">
           {[
             { id: 'overview', label: 'Overview' },
-            { id: 'tasks', label: 'Tasks' },
-            { id: 'summary', label: 'Discharge Summary' },
+            ...(!['doctor', 'nurse', 'pharmacy'].includes(userRole) ? [{ id: 'tasks', label: 'Tasks' }] : []),
+            ...(userRole !== 'pharmacy' ? [{ id: 'summary', label: 'Discharge Summary' }] : []),
             ...(userRole === 'pharmacy' ? [{ id: 'pharmacy', label: 'Pharmacy' }] : []),
-            { id: 'followup', label: 'Follow-Up Plan' },
+            ...(userRole !== 'pharmacy' ? [{ id: 'followup', label: 'Follow-Up Plan' }] : []),
             { id: 'communications', label: 'Communication Log' }
           ].map(tab => (
             <button
