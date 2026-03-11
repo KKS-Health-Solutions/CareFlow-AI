@@ -9,6 +9,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('doctor-signoff');
+  const [taskFilters, setTaskFilters] = useState({ status: '', mrn: '' });
 
   const service = new DischargeCaseService();
 
@@ -155,13 +156,32 @@ export default function DoctorDashboard({ onSwitchRole }) {
       {currentView === 'my-tasks' ? (
         /* ═══════════════ MY TASKS VIEW ═══════════════ */
         <div className="my-tasks-section">
+          <div className="tasks-filters" style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by MRN or patient name..."
+              value={taskFilters.mrn}
+              onChange={e => setTaskFilters(f => ({ ...f, mrn: e.target.value }))}
+              className="filter-input"
+              style={{ width: '280px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px' }}
+            />
+            <select
+              value={taskFilters.status}
+              onChange={e => setTaskFilters(f => ({ ...f, status: e.target.value }))}
+              className="filter-select"
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', background: '#fff' }}
+            >
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="3">Closed Complete</option>
+            </select>
+          </div>
           <div className="tasks-table-container">
             <table className="cases-table">
               <thead>
                 <tr>
                   <th>Patient</th>
                   <th>Task</th>
-                  <th>Role</th>
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Due Date</th>
@@ -169,12 +189,20 @@ export default function DoctorDashboard({ onSwitchRole }) {
                 </tr>
               </thead>
               <tbody>
-                {myTasksData.tasks.map((task, index) => {
+                {myTasksData.tasks.filter(task => {
+                  const state = typeof task.state === 'object' ? task.state.value : task.state;
+                  const patientName = (extractValue(task.patient_name) || '').toLowerCase();
+                  const hospitalNumber = (extractValue(task.hospital_number) || '').toLowerCase();
+                  const search = taskFilters.mrn.toLowerCase();
+                  if (taskFilters.status === 'open' && (state === '3' || state === '4')) return false;
+                  if (taskFilters.status === '3' && state !== '3') return false;
+                  if (search && !patientName.includes(search) && !hospitalNumber.includes(search)) return false;
+                  return true;
+                }).map((task, index) => {
                   const taskDesc = extractValue(task.short_description);
                   const state = typeof task.state === 'object' ? task.state.value : task.state;
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
                   const priorityDisplay = extractValue(task.priority);
-                  const role = extractValue(task.u_provider_role);
                   const patientName = extractValue(task.patient_name);
                   const hospitalNumber = extractValue(task.hospital_number);
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
@@ -188,7 +216,6 @@ export default function DoctorDashboard({ onSwitchRole }) {
                         </div>
                       </td>
                       <td>{taskDesc || 'Task'}</td>
-                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
                       <td>
                         <span className={`status-badge ${state === '3' ? 'status-discharged' : state === '2' ? 'status-ready' : 'status-draft'}`}>
                           {stateDisplay || 'New'}
@@ -203,11 +230,20 @@ export default function DoctorDashboard({ onSwitchRole }) {
               </tbody>
             </table>
 
-            {myTasksData.tasks.length === 0 && (
+            {myTasksData.tasks.filter(task => {
+              const state = typeof task.state === 'object' ? task.state.value : task.state;
+              const patientName = (extractValue(task.patient_name) || '').toLowerCase();
+              const hospitalNumber = (extractValue(task.hospital_number) || '').toLowerCase();
+              const search = taskFilters.mrn.toLowerCase();
+              if (taskFilters.status === 'open' && (state === '3' || state === '4')) return false;
+              if (taskFilters.status === '3' && state !== '3') return false;
+              if (search && !patientName.includes(search) && !hospitalNumber.includes(search)) return false;
+              return true;
+            }).length === 0 && (
               <div className="no-cases">
                 <div className="no-cases-icon">✅</div>
-                <h3>No tasks assigned to you</h3>
-                <p>You have no outstanding discharge tasks.</p>
+                <h3>{myTasksData.tasks.length === 0 ? 'No tasks assigned to you' : 'No tasks match your filters'}</h3>
+                <p>{myTasksData.tasks.length === 0 ? 'You have no outstanding discharge tasks.' : 'Try adjusting the search or status filter.'}</p>
               </div>
             )}
           </div>
