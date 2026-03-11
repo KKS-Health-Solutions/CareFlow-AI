@@ -40,12 +40,6 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             roles: ['admin']
           },
           {
-            id: 'failed-communications',
-            label: 'Failed Communications',
-            icon: '⚠️',
-            roles: ['admin']
-          },
-          {
             id: 'my-tasks',
             label: 'Discharge Tasks',
             icon: '📋',

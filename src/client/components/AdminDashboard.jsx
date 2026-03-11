@@ -24,6 +24,8 @@ export default function AdminDashboard({ onSwitchRole }) {
     status: '',
     mrn: ''
   });
+  const [taskPage, setTaskPage] = useState(1);
+  const TASKS_PER_PAGE = 8;
   const [selectedView, setSelectedView] = useState('overview'); // overview, exceptions, communications
   const [currentView, setCurrentView] = useState('admin-center'); // admin-center, failed-communications, my-tasks
 
@@ -211,6 +213,7 @@ export default function AdminDashboard({ onSwitchRole }) {
 
   const handleTaskFilterChange = (filterName, value) => {
     setTaskFilters(prev => ({ ...prev, [filterName]: value }));
+    setTaskPage(1);
   };
 
   const getStatusBadge = (status) => {
@@ -281,6 +284,9 @@ export default function AdminDashboard({ onSwitchRole }) {
 
     return true;
   });
+
+  const totalTaskPages = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
+  const pagedTasks = filteredTasks.slice((taskPage - 1) * TASKS_PER_PAGE, taskPage * TASKS_PER_PAGE);
 
   if (loading) {
     return (
@@ -366,7 +372,8 @@ export default function AdminDashboard({ onSwitchRole }) {
               />
             </div>
           </div>
-          <div className="tasks-table-container">
+          <div className="tasks-table-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '520px' }}>
+            <div style={{ flex: 1 }}>
             <table className="cases-table">
               <thead>
                 <tr>
@@ -380,7 +387,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map((task, index) => {
+                {pagedTasks.map((task, index) => {
                   const taskDesc = extractValue(task.short_description);
                   const state = typeof task.state === 'object' ? task.state.value : task.state;
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
@@ -422,6 +429,27 @@ export default function AdminDashboard({ onSwitchRole }) {
                 <p>{myTasksData.tasks.length === 0 ? 'You have no outstanding discharge tasks.' : 'No tasks match the selected filters.'}</p>
               </div>
             )}
+            </div>
+
+            <div className="pagination-controls" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 0', background: '#f4f5f7', borderTop: '1px solid #ddd', zIndex: 100, visibility: totalTaskPages > 1 ? 'visible' : 'hidden' }}>
+              <button
+                onClick={() => setTaskPage(p => Math.max(1, p - 1))}
+                disabled={taskPage === 1}
+                className="pagination-btn"
+                style={{ padding: '6px 12px', cursor: taskPage === 1 ? 'not-allowed' : 'pointer', opacity: taskPage === 1 ? 0.4 : 1 }}
+              >
+                ← Prev
+              </button>
+              <span style={{ fontSize: '14px' }}>Page {taskPage} of {totalTaskPages}</span>
+              <button
+                onClick={() => setTaskPage(p => Math.min(totalTaskPages, p + 1))}
+                disabled={taskPage === totalTaskPages}
+                className="pagination-btn"
+                style={{ padding: '6px 12px', cursor: taskPage === totalTaskPages ? 'not-allowed' : 'pointer', opacity: taskPage === totalTaskPages ? 0.4 : 1 }}
+              >
+                Next →
+              </button>
+            </div>
           </div>
         </div>
       ) : (
