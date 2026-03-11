@@ -17,7 +17,8 @@ export default function AdminDashboard({ onSwitchRole }) {
     ward: '',
     overdue: false,
     failedComms: false,
-    missingFields: false
+    missingFields: false,
+    mrn: ''
   });
   const [taskFilters, setTaskFilters] = useState({
     role: '',
@@ -26,6 +27,8 @@ export default function AdminDashboard({ onSwitchRole }) {
   });
   const [taskPage, setTaskPage] = useState(1);
   const TASKS_PER_PAGE = 8;
+  const [casePage, setCasePage] = useState(1);
+  const CASES_PER_PAGE = 5;
   const [selectedView, setSelectedView] = useState('overview'); // overview, exceptions, communications
   const [currentView, setCurrentView] = useState('admin-center'); // admin-center, failed-communications, my-tasks
 
@@ -194,6 +197,7 @@ export default function AdminDashboard({ onSwitchRole }) {
       ...prev,
       [filterName]: value
     }));
+    setCasePage(1);
   };
 
   const formatDate = (dateValue) => {
@@ -231,13 +235,13 @@ export default function AdminDashboard({ onSwitchRole }) {
 
   const getExceptionBadge = (severity) => {
     const badgeClass = {
-      'critical': 'exception-critical',
-      'high': 'exception-high',
-      'medium': 'exception-medium',
-      'low': 'exception-low'
-    }[severity] || 'exception-default';
+      'critical': 'urgent-critical',
+      'high': 'urgent-high',
+      'medium': 'urgent-medium',
+      'low': 'urgent-low'
+    }[severity] || 'urgent-default';
 
-    return <span className={`exception-badge ${badgeClass}`}>{severity}</span>;
+    return <span className={`urgent-badge ${badgeClass}`}>{severity}</span>;
   };
 
   const filteredCases = adminData.cases.filter(caseItem => {
@@ -257,6 +261,13 @@ export default function AdminDashboard({ onSwitchRole }) {
     // Apply filters
     if (filters.status && dischargeStatus !== filters.status) return false;
     if (filters.ward && ward !== filters.ward) return false;
+
+    if (filters.mrn) {
+      const hospitalNumber = extractValue(caseItem.u_hospital_number) || '';
+      const patientName = extractValue(caseItem.u_patient_name) || '';
+      const mrnLower = filters.mrn.toLowerCase();
+      if (!hospitalNumber.toLowerCase().includes(mrnLower) && !patientName.toLowerCase().includes(mrnLower)) return false;
+    }
     
     if (filters.overdue) {
       if (!dueDate) return false;
@@ -284,6 +295,9 @@ export default function AdminDashboard({ onSwitchRole }) {
 
     return true;
   });
+
+  const totalCasePages = Math.ceil(filteredCases.length / CASES_PER_PAGE);
+  const pagedCases = filteredCases.slice((casePage - 1) * CASES_PER_PAGE, casePage * CASES_PER_PAGE);
 
   const totalTaskPages = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
   const pagedTasks = filteredTasks.slice((taskPage - 1) * TASKS_PER_PAGE, taskPage * TASKS_PER_PAGE);
@@ -343,6 +357,13 @@ export default function AdminDashboard({ onSwitchRole }) {
           <div className="cases-header">
             <h2>All Discharge Tasks</h2>
             <div className="case-filters">
+              <input
+                type="text"
+                placeholder="Filter by MRN..."
+                value={taskFilters.mrn}
+                onChange={(e) => handleTaskFilterChange('mrn', e.target.value)}
+                className="filter-select"
+              />
               <select
                 value={taskFilters.role}
                 onChange={(e) => handleTaskFilterChange('role', e.target.value)}
@@ -363,13 +384,6 @@ export default function AdminDashboard({ onSwitchRole }) {
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
               </select>
-              <input
-                type="text"
-                placeholder="Filter by MRN..."
-                value={taskFilters.mrn}
-                onChange={(e) => handleTaskFilterChange('mrn', e.target.value)}
-                className="filter-select"
-              />
             </div>
           </div>
           <div className="tasks-table-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '520px' }}>
@@ -381,7 +395,6 @@ export default function AdminDashboard({ onSwitchRole }) {
                   <th>Task</th>
                   <th>Role</th>
                   <th>Status</th>
-                  <th>Priority</th>
                   <th>Due Date</th>
                   <th>Last Updated</th>
                 </tr>
@@ -391,7 +404,6 @@ export default function AdminDashboard({ onSwitchRole }) {
                   const taskDesc = extractValue(task.short_description);
                   const state = typeof task.state === 'object' ? task.state.value : task.state;
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
-                  const priorityDisplay = extractValue(task.priority);
                   const derivedRole = deriveRole(task.assigned_to);
                   const roleLabel = derivedRole ? derivedRole.charAt(0).toUpperCase() + derivedRole.slice(1) : '-';
                   const patientName = extractValue(task.patient_name);
@@ -413,7 +425,6 @@ export default function AdminDashboard({ onSwitchRole }) {
                           {stateDisplay || 'New'}
                         </span>
                       </td>
-                      <td>{priorityDisplay || '-'}</td>
                       <td>{formatDate(task.due_date)}</td>
                       <td>{formatDate(task.sys_updated_on)}</td>
                     </tr>
@@ -497,10 +508,10 @@ export default function AdminDashboard({ onSwitchRole }) {
           Overview
         </button>
         <button 
-          className={`view-button ${selectedView === 'exceptions' ? 'active' : ''}`}
-          onClick={() => setSelectedView('exceptions')}
+          className={`view-button ${selectedView === 'urgent' ? 'active' : ''}`}
+          onClick={() => setSelectedView('urgent')}
         >
-          Exceptions ({adminData.exceptions.length})
+          Urgent ({adminData.exceptions.length})
         </button>
         <button 
           className={`view-button ${selectedView === 'communications' ? 'active' : ''}`}
@@ -516,6 +527,13 @@ export default function AdminDashboard({ onSwitchRole }) {
           <div className="cases-header">
             <h2>All Discharge + Follow-up Cases</h2>
             <div className="case-filters">
+              <input
+                type="text"
+                placeholder="Filter by MRN or patient..."
+                value={filters.mrn}
+                onChange={(e) => handleFilterChange('mrn', e.target.value)}
+                className="filter-select"
+              />
               <select 
                 value={filters.status} 
                 onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -540,7 +558,6 @@ export default function AdminDashboard({ onSwitchRole }) {
                 <option value="radiology">Radiology</option>
                 <option value="orthopedics">Orthopedics</option>
               </select>
-
               <label className="filter-checkbox">
                 <input 
                   type="checkbox" 
@@ -552,7 +569,8 @@ export default function AdminDashboard({ onSwitchRole }) {
             </div>
           </div>
 
-          <div className="cases-table-container">
+          <div className="cases-table-container" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1 }}>
             <table className="cases-table">
               <thead>
                 <tr>
@@ -566,7 +584,7 @@ export default function AdminDashboard({ onSwitchRole }) {
                 </tr>
               </thead>
               <tbody>
-                {filteredCases.map((caseItem, index) => {
+                {pagedCases.map((caseItem, index) => {
                   const patientName = extractValue(caseItem.u_patient_name);
                   const ward = extractValue(caseItem.u_ward);
                   const riskLevel = extractValue(caseItem.u_risk_level);
@@ -627,28 +645,49 @@ export default function AdminDashboard({ onSwitchRole }) {
                 })}
               </tbody>
             </table>
+            </div>
+
+            <div className="pagination-controls" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 0', background: '#f4f5f7', borderTop: '1px solid #ddd', zIndex: 100, visibility: totalCasePages > 1 ? 'visible' : 'hidden' }}>
+              <button
+                onClick={() => setCasePage(p => Math.max(1, p - 1))}
+                disabled={casePage === 1}
+                className="pagination-btn"
+                style={{ padding: '6px 12px', cursor: casePage === 1 ? 'not-allowed' : 'pointer', opacity: casePage === 1 ? 0.4 : 1 }}
+              >
+                ← Prev
+              </button>
+              <span style={{ fontSize: '14px' }}>Page {casePage} of {totalCasePages}</span>
+              <button
+                onClick={() => setCasePage(p => Math.min(totalCasePages, p + 1))}
+                disabled={casePage === totalCasePages}
+                className="pagination-btn"
+                style={{ padding: '6px 12px', cursor: casePage === totalCasePages ? 'not-allowed' : 'pointer', opacity: casePage === totalCasePages ? 0.4 : 1 }}
+              >
+                Next →
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {selectedView === 'exceptions' && (
-        <div className="exceptions-section">
-          <div className="exceptions-header">
-            <h2>Exceptions & Issues</h2>
+      {selectedView === 'urgent' && (
+        <div className="urgent-section">
+          <div className="urgent-header">
+            <h2>Urgent</h2>
             <p>Cases requiring immediate attention or intervention</p>
           </div>
           
-          <div className="exceptions-list">
+          <div className="urgent-list">
             {adminData.exceptions.map((exception, index) => (
-              <div key={index} className={`exception-item severity-${exception.severity}`}>
-                <div className="exception-content">
-                  <div className="exception-header">
-                    <span className="exception-patient">{exception.patient}</span>
+              <div key={index} className={`urgent-item severity-${exception.severity}`}>
+                <div className="urgent-content">
+                  <div className="urgent-item-header">
+                    <span className="urgent-patient">{exception.patient}</span>
                     {getExceptionBadge(exception.severity)}
                   </div>
-                  <div className="exception-message">{exception.message}</div>
+                  <div className="urgent-message">{exception.message}</div>
                 </div>
-                <div className="exception-actions">
+                <div className="urgent-actions">
                   <button 
                     onClick={() => handleCaseClick(exception.case)}
                     className="view-case-btn"
@@ -660,9 +699,9 @@ export default function AdminDashboard({ onSwitchRole }) {
             ))}
             
             {adminData.exceptions.length === 0 && (
-              <div className="no-exceptions">
-                <div className="no-exceptions-icon">✅</div>
-                <h3>No exceptions found</h3>
+              <div className="no-urgent">
+                <div className="no-urgent-icon">✅</div>
+                <h3>No urgent cases found</h3>
                 <p>All cases are progressing normally without issues.</p>
               </div>
             )}
