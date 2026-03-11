@@ -74,6 +74,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     }
     
     if (filters.overdue) {
+      if (state !== '1' && state !== '2') return false; // only show open tasks as overdue
       if (!dueDate) return false;
       const today = new Date();
       const due = new Date(dueDate);
