@@ -4,7 +4,7 @@ import Navigation from './Navigation.jsx';
 import './DoctorDashboard.css';
 
 export default function DoctorDashboard({ onSwitchRole }) {
-  const [doctorData, setDoctorData] = useState({ cases: [], stats: {} });
+  const [doctorData, setDoctorData] = useState({ summaries: [], stats: {} });
   const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -293,54 +293,42 @@ export default function DoctorDashboard({ onSwitchRole }) {
                 <th>Discharge Status</th>
                 <th>Summary Status</th>
                 <th>Approval Status</th>
-                <th>Follow-up Status</th>
                 <th>Due Date</th>
-                <th>Assigned Clinician</th>
-                <th>Urgency</th>
               </tr>
             </thead>
             <tbody>
-              {doctorData.cases.map((caseItem, index) => {
-                const patientName = extractValue(caseItem.u_patient_name);
-                const ward = extractValue(caseItem.u_ward);
-                const assignedClinician = extractValue(caseItem.assigned_clinician) || 'Unassigned';
-                
-                // Get related summary data if available
-                const summary = doctorData.summaries?.find(s => 
-                  (typeof s.u_discharge_case === 'object' ? s.u_discharge_case.value : s.u_discharge_case) ===
-                  (typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id)
-                );
+              {doctorData.summaries.map((summary, index) => {
+                const patientName = extractValue(summary['u_discharge_case.u_patient_name']);
+                const hospitalNumber = extractValue(summary['u_discharge_case.u_hospital_number']);
+                const ward = extractValue(summary['u_discharge_case.u_ward']);
+                const dischargeStatus = summary['u_discharge_case.u_discharging_status'];
+                const dueDate = summary['u_discharge_case.u_due_date'];
+                const caseId = typeof summary.u_discharge_case === 'object' ? summary.u_discharge_case.value : summary.u_discharge_case;
 
                 return (
-                  <tr key={index} className="case-row" onClick={() => handleCaseClick(caseItem)}>
+                  <tr key={index} className="case-row" onClick={() => {
+                    if (caseId) window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank');
+                  }}>
                     <td>
                       <div className="patient-info">
                         <span className="patient-name">{patientName || 'Unknown Patient'}</span>
                         <span className="hospital-number">
-                          #{extractValue(caseItem.u_hospital_number) || 'N/A'}
+                          #{hospitalNumber || 'N/A'}
                         </span>
                       </div>
                     </td>
                     <td>{ward || '-'}</td>
-                    <td>{getStatusBadge(caseItem.u_discharging_status, 'discharge')}</td>
-                    <td>{summary ? getStatusBadge(summary.u_summary_status, 'summary') : 'No Summary'}</td>
-                    <td>{summary ? getStatusBadge(summary.u_clinician_approved ? 'approved' : 'pending', 'approval') : '-'}</td>
-                    <td>
-                      {caseItem.u_due_date ? 
-                        <span className="followup-scheduled">📅 Scheduled</span> : 
-                        <span className="followup-missing">❌ Not Scheduled</span>
-                      }
-                    </td>
-                    <td>{formatDate(caseItem.u_due_date)}</td>
-                    <td>{assignedClinician}</td>
-                    <td>{getUrgencyIndicator(caseItem)}</td>
+                    <td>{dischargeStatus ? getStatusBadge(dischargeStatus, 'discharge') : '-'}</td>
+                    <td>{getStatusBadge(summary.u_summary_status, 'summary')}</td>
+                    <td>{getStatusBadge(extractValue(summary.u_clinician_approved) === 'true' ? 'approved' : 'pending', 'approval')}</td>
+                    <td>{formatDate(dueDate)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
 
-          {doctorData.cases.length === 0 && (
+          {doctorData.summaries.length === 0 && (
             <div className="no-cases">
               <div className="no-cases-icon">✅</div>
               <h3>No cases requiring action</h3>
