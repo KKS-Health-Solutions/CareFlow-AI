@@ -321,39 +321,39 @@
 .action-btn.retry:hover { background-color: #fff3e0; }
 .action-btn.assign:hover { background-color: #e8f5e8; }
 
-/* Exceptions Section */
-.exceptions-section {
+/* Urgent Section */
+.urgent-section {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.exceptions-header {
+.urgent-header {
   padding: 20px;
   border-bottom: 1px solid #e9ecef;
   background-color: #f8f9fa;
 }
 
-.exceptions-header h2 {
+.urgent-header h2 {
   margin: 0 0 5px 0;
   color: #495057;
   font-size: 20px;
 }
 
-.exceptions-header p {
+.urgent-header p {
   margin: 0;
   color: #6c757d;
   font-size: 14px;
 }
 
-.exceptions-list {
+.urgent-list {
   padding: 20px;
   display: grid;
   gap: 15px;
 }
 
-.exception-item {
+.urgent-item {
   border-left: 4px solid;
   background-color: #f8f9fa;
   padding: 15px;
@@ -363,43 +363,43 @@
   align-items: center;
 }
 
-.exception-item.severity-critical {
+.urgent-item.severity-critical {
   border-left-color: #dc3545;
   background-color: #fff5f5;
 }
 
-.exception-item.severity-high {
+.urgent-item.severity-high {
   border-left-color: #fd7e14;
   background-color: #fff8f0;
 }
 
-.exception-item.severity-medium {
+.urgent-item.severity-medium {
   border-left-color: #ffc107;
   background-color: #fffbf0;
 }
 
-.exception-item.severity-low {
+.urgent-item.severity-low {
   border-left-color: #28a745;
   background-color: #f8fff9;
 }
 
-.exception-content {
+.urgent-content {
   flex: 1;
 }
 
-.exception-header {
+.urgent-item-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 5px;
 }
 
-.exception-patient {
+.urgent-patient {
   font-weight: 600;
   color: #333;
 }
 
-.exception-badge {
+.urgent-badge {
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
@@ -407,27 +407,27 @@
   text-transform: uppercase;
 }
 
-.exception-critical {
+.urgent-critical {
   background-color: #ffebee;
   color: #d32f2f;
 }
 
-.exception-high {
+.urgent-high {
   background-color: #fff3e0;
   color: #f57c00;
 }
 
-.exception-medium {
+.urgent-medium {
   background-color: #fff8e1;
   color: #ff9800;
 }
 
-.exception-low {
+.urgent-low {
   background-color: #e8f5e8;
   color: #388e3c;
 }
 
-.exception-message {
+.urgent-message {
   color: #666;
   font-size: 14px;
 }
@@ -536,18 +536,18 @@
 }
 
 /* No Data States */
-.no-exceptions, .no-failed-comms {
+.no-urgent, .no-failed-comms {
   padding: 60px 30px;
   text-align: center;
   color: #666;
 }
 
-.no-exceptions-icon, .no-failed-comms-icon {
+.no-urgent-icon, .no-failed-comms-icon {
   font-size: 48px;
   margin-bottom: 15px;
 }
 
-.no-exceptions h3, .no-failed-comms h3 {
+.no-urgent h3, .no-failed-comms h3 {
   color: #333;
   margin-bottom: 10px;
 }
