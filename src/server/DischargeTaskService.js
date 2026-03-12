@@ -53,9 +53,9 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
     // Role-to-ServiceNow-role mapping for permission checks
     DEFAULT_ASSIGNEE_BY_USER: {
-        'doctor':   '3D87efb319c38b72100fa7bd43e4013164',
-        'nurse':    '3D8f8f3711c3cb72100fa7bd43e40131d9',
-        'pharmacy': '3Dac104461c3cb72100fa7bd43e4013197'
+        'doctor':   '87efb319c38b72100fa7bd43e4013164',
+        'nurse':    '8f8f3711c3cb72100fa7bd43e40131d9',
+        'pharmacy': 'ac104461c3cb72100fa7bd43e4013197'
     },
 
     // ═══════════════════════════════════════════════════════════════════
@@ -114,7 +114,7 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // ── 4. Query open tasks for the specified role ───────────────
         var taskGr = new GlideRecord(this.TASK_TABLE);
         taskGr.addQuery(this.CASE_REF_FIELD, caseSysId);
-		taskGr.addQuery(this.ASSIGNED_TO_FIELD, assigneeSysId);
+        taskGr.addQuery(this.ASSIGNED_TO_FIELD, assigneeSysId);
         taskGr.addQuery(this.STATE_FIELD, 'IN', this.STATES_NOT_COMPLETE);
         taskGr.query();
 
@@ -146,10 +146,7 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             }
         }
 
-        // ── 6. Check if ALL role tasks (not just open) are now complete ──
-        this._updateCaseTasksCompleteFlag(caseSysId);
-
-        // ── 7. Build result ──────────────────────────────────────────
+        // ── 6. Build result ──────────────────────────────────────────
         if (result.updatedCount === 0 && result.skippedCount === 0) {
             result.success = true;
             result.message = 'No open ' + userName + ' tasks found for this case';
@@ -173,8 +170,9 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     },
 
 	_getRoleFromAssignee: function(assigneeSysId) {
+        var normalized = String(assigneeSysId || '').toLowerCase();
 		for (var role in this.DEFAULT_ASSIGNEE_BY_USER) {
-			if (this.DEFAULT_ASSIGNEE_BY_USER[role] === assigneeSysId)
+            if (String(this.DEFAULT_ASSIGNEE_BY_USER[role] || '').toLowerCase() === normalized)
 			return role;
 		}
 		return '';
@@ -205,7 +203,7 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         while (taskGr.next()) {
             var assigneeSysId = taskGr.getValue(this.ASSIGNED_TO_FIELD) || '';
-			var providerRole = this._getRoleFromAssignee(assigneeSysId);
+            var providerRole = this._getRoleFromAssignee(assigneeSysId);
 
 
             if (summary.hasOwnProperty(providerRole)) {
@@ -220,32 +218,6 @@ DischargeTaskService.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
 
         return summary;
-    },
-
-    // ═══════════════════════════════════════════════════════════════════
-    // PRIVATE: _updateCaseTasksCompleteFlag(caseSysId)
-    // ═══════════════════════════════════════════════════════════════════
-    /**
-     * After completing tasks, check if ALL tasks for this case are now
-     * complete. If so, set u_tasks_complete = true on the case.
-     */
-    _updateCaseTasksCompleteFlag: function(caseSysId) {
-        var openCount = new GlideAggregate(this.TASK_TABLE);
-        openCount.addQuery(this.CASE_REF_FIELD, caseSysId);
-        openCount.addQuery(this.STATE_FIELD, 'IN', this.STATES_NOT_COMPLETE);
-        openCount.addAggregate('COUNT');
-        openCount.query();
-
-        var remaining = 0;
-        if (openCount.next()) {
-            remaining = parseInt(openCount.getAggregate('COUNT'), 10);
-        }
-
-        var caseGr = new GlideRecord('u_cflow_patient_discharge_case');
-        if (caseGr.get(caseSysId)) {
-            caseGr.setValue('u_tasks_complete', remaining === 0);
-            caseGr.update();
-        }
     },
 
     // ═══════════════════════════════════════════════════════════════════

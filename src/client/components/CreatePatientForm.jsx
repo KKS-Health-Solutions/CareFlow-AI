@@ -50,9 +50,6 @@ export default function CreatePatientForm({ onBack, onSubmit }) {
       newErrors.patient_name = 'Patient name is required';
     }
 
-    if (!formData.hospital_number.trim()) {
-      newErrors.hospital_number = 'Hospital number is required';
-    }
 
     if (!formData.ward) {
       newErrors.ward = 'Please select a ward';
@@ -145,26 +142,6 @@ export default function CreatePatientForm({ onBack, onSubmit }) {
               <span className="error-text">{errors.patient_name}</span>
             )}
           </div>
-
-          {/* Hospital Number */}
-          <div className={`form-group ${errors.hospital_number ? 'has-error' : ''}`}>
-            <label htmlFor="hospital_number">
-              Hospital Number <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="hospital_number"
-              name="hospital_number"
-              value={formData.hospital_number}
-              onChange={handleChange}
-              placeholder="e.g. MRN-2026-0001"
-              disabled={submitting}
-            />
-            {errors.hospital_number && (
-              <span className="error-text">{errors.hospital_number}</span>
-            )}
-          </div>
-
           {/* Admission Reason */}
           <div className="form-group">
             <label htmlFor="admission_reason">Admission Reason</label>
