@@ -4,11 +4,12 @@ import Navigation from './Navigation.jsx';
 import './DoctorDashboard.css';
 
 export default function DoctorDashboard({ onSwitchRole }) {
-  const [doctorData, setDoctorData] = useState({ cases: [], stats: {} });
+  const [doctorData, setDoctorData] = useState({ summaries: [], stats: {} });
   const [myTasksData, setMyTasksData] = useState({ cases: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('doctor-signoff');
+  const [taskFilters, setTaskFilters] = useState({ status: '', mrn: '' });
 
   const service = new DischargeCaseService();
 
@@ -155,13 +156,32 @@ export default function DoctorDashboard({ onSwitchRole }) {
       {currentView === 'my-tasks' ? (
         /* ═══════════════ MY TASKS VIEW ═══════════════ */
         <div className="my-tasks-section">
+          <div className="tasks-filters" style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by MRN or patient name..."
+              value={taskFilters.mrn}
+              onChange={e => setTaskFilters(f => ({ ...f, mrn: e.target.value }))}
+              className="filter-input"
+              style={{ width: '280px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px' }}
+            />
+            <select
+              value={taskFilters.status}
+              onChange={e => setTaskFilters(f => ({ ...f, status: e.target.value }))}
+              className="filter-select"
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', background: '#fff' }}
+            >
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="3">Closed Complete</option>
+            </select>
+          </div>
           <div className="tasks-table-container">
             <table className="cases-table">
               <thead>
                 <tr>
                   <th>Patient</th>
                   <th>Task</th>
-                  <th>Role</th>
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Due Date</th>
@@ -169,12 +189,20 @@ export default function DoctorDashboard({ onSwitchRole }) {
                 </tr>
               </thead>
               <tbody>
-                {myTasksData.tasks.map((task, index) => {
+                {myTasksData.tasks.filter(task => {
+                  const state = typeof task.state === 'object' ? task.state.value : task.state;
+                  const patientName = (extractValue(task.patient_name) || '').toLowerCase();
+                  const hospitalNumber = (extractValue(task.hospital_number) || '').toLowerCase();
+                  const search = taskFilters.mrn.toLowerCase();
+                  if (taskFilters.status === 'open' && (state === '3' || state === '4')) return false;
+                  if (taskFilters.status === '3' && state !== '3') return false;
+                  if (search && !patientName.includes(search) && !hospitalNumber.includes(search)) return false;
+                  return true;
+                }).map((task, index) => {
                   const taskDesc = extractValue(task.short_description);
                   const state = typeof task.state === 'object' ? task.state.value : task.state;
                   const stateDisplay = typeof task.state === 'object' ? task.state.display_value : task.state;
                   const priorityDisplay = extractValue(task.priority);
-                  const role = extractValue(task.u_provider_role);
                   const patientName = extractValue(task.patient_name);
                   const hospitalNumber = extractValue(task.hospital_number);
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
@@ -188,7 +216,6 @@ export default function DoctorDashboard({ onSwitchRole }) {
                         </div>
                       </td>
                       <td>{taskDesc || 'Task'}</td>
-                      <td><span className={`role-badge role-${role}`}>{role || '-'}</span></td>
                       <td>
                         <span className={`status-badge ${state === '3' ? 'status-discharged' : state === '2' ? 'status-ready' : 'status-draft'}`}>
                           {stateDisplay || 'New'}
@@ -203,11 +230,20 @@ export default function DoctorDashboard({ onSwitchRole }) {
               </tbody>
             </table>
 
-            {myTasksData.tasks.length === 0 && (
+            {myTasksData.tasks.filter(task => {
+              const state = typeof task.state === 'object' ? task.state.value : task.state;
+              const patientName = (extractValue(task.patient_name) || '').toLowerCase();
+              const hospitalNumber = (extractValue(task.hospital_number) || '').toLowerCase();
+              const search = taskFilters.mrn.toLowerCase();
+              if (taskFilters.status === 'open' && (state === '3' || state === '4')) return false;
+              if (taskFilters.status === '3' && state !== '3') return false;
+              if (search && !patientName.includes(search) && !hospitalNumber.includes(search)) return false;
+              return true;
+            }).length === 0 && (
               <div className="no-cases">
                 <div className="no-cases-icon">✅</div>
-                <h3>No tasks assigned to you</h3>
-                <p>You have no outstanding discharge tasks.</p>
+                <h3>{myTasksData.tasks.length === 0 ? 'No tasks assigned to you' : 'No tasks match your filters'}</h3>
+                <p>{myTasksData.tasks.length === 0 ? 'You have no outstanding discharge tasks.' : 'Try adjusting the search or status filter.'}</p>
               </div>
             )}
           </div>
@@ -257,54 +293,42 @@ export default function DoctorDashboard({ onSwitchRole }) {
                 <th>Discharge Status</th>
                 <th>Summary Status</th>
                 <th>Approval Status</th>
-                <th>Follow-up Status</th>
                 <th>Due Date</th>
-                <th>Assigned Clinician</th>
-                <th>Urgency</th>
               </tr>
             </thead>
             <tbody>
-              {doctorData.cases.map((caseItem, index) => {
-                const patientName = extractValue(caseItem.u_patient_name);
-                const ward = extractValue(caseItem.u_ward);
-                const assignedClinician = extractValue(caseItem.assigned_clinician) || 'Unassigned';
-                
-                // Get related summary data if available
-                const summary = doctorData.summaries?.find(s => 
-                  (typeof s.u_discharge_case === 'object' ? s.u_discharge_case.value : s.u_discharge_case) ===
-                  (typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id)
-                );
+              {doctorData.summaries.map((summary, index) => {
+                const patientName = extractValue(summary['u_discharge_case.u_patient_name']);
+                const hospitalNumber = extractValue(summary['u_discharge_case.u_hospital_number']);
+                const ward = extractValue(summary['u_discharge_case.u_ward']);
+                const dischargeStatus = summary['u_discharge_case.u_discharging_status'];
+                const dueDate = summary['u_discharge_case.u_due_date'];
+                const caseId = typeof summary.u_discharge_case === 'object' ? summary.u_discharge_case.value : summary.u_discharge_case;
 
                 return (
-                  <tr key={index} className="case-row" onClick={() => handleCaseClick(caseItem)}>
+                  <tr key={index} className="case-row" onClick={() => {
+                    if (caseId) window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank');
+                  }}>
                     <td>
                       <div className="patient-info">
                         <span className="patient-name">{patientName || 'Unknown Patient'}</span>
                         <span className="hospital-number">
-                          #{extractValue(caseItem.u_hospital_number) || 'N/A'}
+                          #{hospitalNumber || 'N/A'}
                         </span>
                       </div>
                     </td>
                     <td>{ward || '-'}</td>
-                    <td>{getStatusBadge(caseItem.u_discharging_status, 'discharge')}</td>
-                    <td>{summary ? getStatusBadge(summary.u_summary_status, 'summary') : 'No Summary'}</td>
-                    <td>{summary ? getStatusBadge(summary.u_clinician_approved ? 'approved' : 'pending', 'approval') : '-'}</td>
-                    <td>
-                      {caseItem.u_due_date ? 
-                        <span className="followup-scheduled">📅 Scheduled</span> : 
-                        <span className="followup-missing">❌ Not Scheduled</span>
-                      }
-                    </td>
-                    <td>{formatDate(caseItem.u_due_date)}</td>
-                    <td>{assignedClinician}</td>
-                    <td>{getUrgencyIndicator(caseItem)}</td>
+                    <td>{dischargeStatus ? getStatusBadge(dischargeStatus, 'discharge') : '-'}</td>
+                    <td>{getStatusBadge(summary.u_summary_status, 'summary')}</td>
+                    <td>{getStatusBadge(extractValue(summary.u_clinician_approved) === 'true' ? 'approved' : 'pending', 'approval')}</td>
+                    <td>{formatDate(dueDate)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
 
-          {doctorData.cases.length === 0 && (
+          {doctorData.summaries.length === 0 && (
             <div className="no-cases">
               <div className="no-cases-icon">✅</div>
               <h3>No cases requiring action</h3>
