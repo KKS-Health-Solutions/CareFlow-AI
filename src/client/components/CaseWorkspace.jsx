@@ -338,6 +338,8 @@ export default function CaseWorkspace() {
     // "Mark Ready for Discharge" buttons for ALL roles.
     const isDischarged = dischargeStatus &&
       dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
+    const isDraft = dischargeStatus &&
+      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'draft';
 
     if (userRole === 'nurse') {
       // Only show "Mark Ready for Discharge" if NOT already ready and NOT discharged
@@ -414,7 +416,7 @@ export default function CaseWorkspace() {
     // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
     if (userRole === 'admin') {
       // Admin can still mark ready for discharge if not already done and NOT discharged
-      if (!isReadyForDischarge && !isDischarged) {
+      if (!isReadyForDischarge && !isDischarged && !isDraft) {
         actions.push({
           label: 'Mark Ready for Discharge',
           action: 'markReadyForDischarge',
