@@ -70,11 +70,24 @@ export default function CaseWorkspace() {
       setError(null);
       console.log('Loading case data for:', caseId);
       const data = await service.getCase(caseId);
+      let summary = data.summary;
+
+      if (!summary) {
+        try {
+          const fallbackSummary = await service.getDischargeSummary(caseId);
+          if (fallbackSummary) {
+            summary = fallbackSummary;
+          }
+        } catch (fallbackErr) {
+          console.warn('Could not load discharge summary for email tab:', fallbackErr);
+        }
+      }
+
       console.log('Case data loaded:', data);
       console.log('Summary from getCase:', data.summary);
       console.log('Summary type:', typeof data.summary);
-      console.log('Summary keys:', data.summary ? Object.keys(data.summary) : 'null');
-      setCaseData(data);
+      console.log('Summary keys:', summary ? Object.keys(summary) : 'null');
+      setCaseData({ ...data, summary });
       
       // Load per-role task summary alongside case data
       try {
@@ -250,11 +263,9 @@ export default function CaseWorkspace() {
             result = await service.sendFollowUpReminder(caseId, recipientType, reminderEmail);
           }
           break;
-        case 'retryFailedSend':
-          const retryEmail = prompt('Enter recipient email address:');
-          const retryType = prompt('Enter recipient type (patient/gp):');
-          if (retryEmail && retryType) {
-            result = await service.retryFailedSend(caseId, retryType, retryEmail);
+        case 'markAdminSummarySent':
+          if (summaryId) {
+            result = await service.markAdminSummarySent(summaryId);
           }
           break;
           
@@ -448,11 +459,6 @@ export default function CaseWorkspace() {
           label: 'Send Follow-Up Reminder',
           action: 'sendFollowUpReminder',
           variant: 'info'
-        },
-        {
-          label: 'Retry Failed Send',
-          action: 'retryFailedSend',
-          variant: 'warning'
         }
       );
     }
@@ -593,6 +599,19 @@ export default function CaseWorkspace() {
     return true;
   });
 
+  const summaryStatus = caseData.summary
+    ? typeof caseData.summary.u_summary_status === 'object'
+      ? caseData.summary.u_summary_status.value
+      : caseData.summary.u_summary_status
+    : '';
+  const showEmailTab = userRole === 'admin' && summaryStatus === 'clinician_approved';
+  const adminSummarySent = caseData.summary
+    ? String(
+        typeof caseData.summary.u_admin_send_summary === 'object'
+          ? caseData.summary.u_admin_send_summary.value
+          : caseData.summary.u_admin_send_summary
+      ).toLowerCase() === 'true'
+    : false;
 
   return (
     <div className="case-workspace">
@@ -605,11 +624,11 @@ export default function CaseWorkspace() {
               Ward: {extractValue(caseData.case.u_ward) || '-'}
             </div>
           </div>
-          <div className="case-actions">
-            <button 
-              onClick={() => window.location.href = '/discharge_command_center.do'} 
-              className="action-button secondary"
-            >
+        <div className="case-actions">
+          <button 
+            onClick={() => window.location.href = '/discharge_command_center.do'} 
+            className="action-button secondary"
+          >
               ← Dashboard
             </button>
             {/* Role switcher for demo */}
@@ -670,6 +689,9 @@ export default function CaseWorkspace() {
             { id: 'overview', label: 'Overview' },
             ...(!['doctor', 'nurse', 'pharmacy'].includes(userRole) ? [{ id: 'tasks', label: 'Tasks' }] : []),
             ...(userRole !== 'pharmacy' ? [{ id: 'summary', label: 'Discharge Summary' }] : []),
+            ...(showEmailTab
+              ? [{ id: 'email', label: 'Email' }]
+              : []),
             ...(userRole === 'pharmacy' ? [{ id: 'pharmacy', label: 'Pharmacy' }] : []),
             ...(userRole !== 'pharmacy' ? [{ id: 'followup', label: 'Follow-Up Plan' }] : []),
             { id: 'communications', label: 'Communication Log' }
@@ -932,6 +954,31 @@ export default function CaseWorkspace() {
             </div>
           )}
 
+          {activeTab === 'email' && (
+            <div className="tab-panel">
+              <h3>Email</h3>
+              <div className="email-info">
+                <div className="field">
+                  <label>Patient Email:</label>
+                  <span>{extractValue(caseData.summary?.u_email) || 'Not Available'}</span>
+                </div>
+                <div className="field">
+                  <label>Admin Send Summary:</label>
+                  <span>{adminSummarySent ? 'Sent' : 'Not Sent'}</span>
+                </div>
+                <div className="email-actions">
+                  <button
+                    className="action-button primary"
+                    onClick={() => handleRoleAction('markAdminSummarySent')}
+                    disabled={actionLoading || adminSummarySent}
+                  >
+                    {actionLoading ? 'Processing...' : 'Set Admin Send Summary'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'communications' && (
             <div className="tab-panel">
               <h3>Communication Log</h3>
@@ -968,9 +1015,6 @@ export default function CaseWorkspace() {
                   </button>
                   <button onClick={() => handleRoleAction('notifyPatient')} className="action-button secondary">
                     Notify Patient
-                  </button>
-                  <button onClick={() => handleRoleAction('retryFailedSend')} className="action-button warning">
-                    Retry Failed Send
                   </button>
                 </div>
               )}
