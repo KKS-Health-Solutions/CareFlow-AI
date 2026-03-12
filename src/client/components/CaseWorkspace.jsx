@@ -96,8 +96,8 @@ export default function CaseWorkspace() {
   const handleCaseSelection = (caseId) => {
     setSelectedCaseId(caseId);
     loadCaseData(caseId);
-    // Update URL to include the selected case ID
-    const newUrl = `${window.location.pathname}?sys_id=${caseId}`;
+    // Update URL to include selected case and active role
+    const newUrl = `${window.location.pathname}?sys_id=${caseId}&role=${userRole}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
@@ -303,6 +303,10 @@ export default function CaseWorkspace() {
   };
 
   const openDischargeSummary = () => {
+    if (userRole !== 'doctor') {
+      return;
+    }
+
     const summaryId = caseData?.summary
       ? (typeof caseData.summary.sys_id === 'object'
           ? caseData.summary.sys_id.value
@@ -461,11 +465,20 @@ export default function CaseWorkspace() {
     const newUserId = USER_ID_BY_ROLE[newRole] || '';
     setActiveUserId(newUserId);
 
+    // Keep URL in sync with selected role so reload/open-in-new-tab preserves context
+    const params = new URLSearchParams(window.location.search);
+    if (selectedCaseId) {
+      params.set('sys_id', selectedCaseId);
+    }
+    params.set('role', newRole);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+
     // refresh task data for the currently selected case
     if (selectedCaseId) {
       loadCaseData(selectedCaseId, newUserId);
-  }
-};
+    }
+  };
 
 
   // If no case is selected, show case selection interface
@@ -813,8 +826,12 @@ export default function CaseWorkspace() {
                 <button
                   className="action-button primary"
                   onClick={openDischargeSummary}
-                  disabled={!isSummaryReady()}
-                  title={isSummaryReady() ? 'Open discharge summary record' : 'Summary is not yet ready'}
+                  disabled={userRole !== 'doctor' || !isSummaryReady()}
+                  title={
+                    userRole !== 'doctor'
+                      ? 'Only doctor can open discharge summary'
+                      : (isSummaryReady() ? 'Open discharge summary record' : 'Summary is not yet ready')
+                  }
                 >
                   Open Summary
                 </button>
