@@ -175,7 +175,7 @@ export class DischargeCaseService {
     return {
       awaitingApproval: summaries.filter(summary => {
         const status = typeof summary.u_summary_status === 'object' ? summary.u_summary_status.value : summary.u_summary_status;
-        return status === 'ready_for_review';
+        return status === 'ready_for_review' || 'draft';
       }).length,
       
       followupsNotScheduled: cases.filter(caseItem => {
