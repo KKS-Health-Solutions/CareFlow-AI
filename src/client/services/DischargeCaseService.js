@@ -673,6 +673,22 @@ export class DischargeCaseService {
     return this.completeTasksForUser(caseId, 'doctor');
   }
 
+  /**
+   * Doctor task flow: update discharge case fields, then close doctor tasks.
+   * @param {string} caseId - sys_id of the discharge case
+   * @param {object} details - { u_diagnosis, u_hospital_course, u_follow_up_instructions, u_medication }
+   * @returns {object} { success, message }
+   */
+  async completeDoctorTaskWithDetails(caseId, details) {
+    await this.updateCase(caseId, {
+      u_diagnosis: details.u_diagnosis,
+      u_hospital_course: details.u_hospital_course,
+      u_follow_up_instructions: details.u_follow_up_instructions,
+      u_medication: details.u_medication,
+    });
+    return this.completeTasksForUser(caseId, 'doctor');
+  }
+
   /** Convenience: complete only pharmacy tasks */
   async completePharmacyTasks(caseId) {
     return this.completeTasksForUser(caseId, 'pharmacy');
