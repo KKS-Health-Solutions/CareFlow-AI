@@ -72,6 +72,15 @@ export default function CaseWorkspace() {
       const data = await service.getCase(caseId);
       let summary = data.summary;
 
+      try {
+        const directSummaryRecord = await service.getDischargeSummaryRecord(caseId);
+        if (directSummaryRecord) {
+          summary = directSummaryRecord;
+        }
+      } catch (directSummaryErr) {
+        console.warn('Could not load discharge summary record:', directSummaryErr);
+      }
+
       if (!summary) {
         try {
           const fallbackSummary = await service.getDischargeSummary(caseId);
@@ -263,11 +272,6 @@ export default function CaseWorkspace() {
             result = await service.sendFollowUpReminder(caseId, recipientType, reminderEmail);
           }
           break;
-        case 'markAdminSummarySent':
-          if (summaryId) {
-            result = await service.markAdminSummarySent(summaryId);
-          }
-          break;
           
         // ====================
         // DEFAULT HANDLER
@@ -296,9 +300,42 @@ export default function CaseWorkspace() {
     return date ? new Date(date).toLocaleDateString() : '-';
   };
 
+  const formatDateTime = (dateValue) => {
+    if (!dateValue) return '-';
+    const date = typeof dateValue === 'object' ? dateValue.display_value : dateValue;
+    return date ? new Date(date).toLocaleString() : '-';
+  };
+
   const extractValue = (field) => {
     return typeof field === 'object' ? field.display_value : field;
   };
+
+  const getLatestGpEmailCommunication = () => {
+    if (!caseData?.communicationLog?.length) return null;
+
+    const hasGpRecipient = (entry) => {
+      const recipientType = String(extractValue(entry.u_recipient_type) || '').toLowerCase();
+      return recipientType === 'gp';
+    };
+
+    const gpEntries = caseData.communicationLog.filter(hasGpRecipient);
+    if (!gpEntries.length) return null;
+
+    return gpEntries.sort((a, b) => {
+      const dateA = new Date(extractValue(a.u_sent_on) || 0).getTime();
+      const dateB = new Date(extractValue(b.u_sent_on) || 0).getTime();
+      return dateB - dateA;
+    })[0];
+  };
+
+  const latestGpEmailComm = getLatestGpEmailCommunication();
+  const latestGpEmailSubject = latestGpEmailComm
+    ? extractValue(latestGpEmailComm.u_subject) ||
+      extractValue(latestGpEmailComm.u_email_subject) ||
+      extractValue(latestGpEmailComm.u_message_subject) ||
+      `Discharge summary for ${extractValue(caseData?.case?.u_patient_name) || 'patient'}`
+    : 'Not sent yet';
+  const summaryEmailBody = extractValue(caseData?.summary?.u_email) || 'Not Available';
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
@@ -334,6 +371,13 @@ export default function CaseWorkspace() {
     const summaryStatus = extractValue(caseData.summary?.u_summary_status);
     const dischargeStatus = extractValue(caseData.case.u_discharging_status);
     const tasksComplete = extractValue(caseData.case.u_tasks_complete);
+    const adminSummaryAlreadySent = caseData.summary
+      ? String(
+          typeof caseData.summary.u_admin_send_summary === 'object'
+            ? caseData.summary.u_admin_send_summary.value
+            : caseData.summary.u_admin_send_summary
+        ).toLowerCase() === 'true'
+      : false;
 
     const actions = [];
 
@@ -434,7 +478,7 @@ export default function CaseWorkspace() {
           variant: 'primary'
         });
       }
-      if (summaryStatus === 'clinician_approved') {
+      if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
         actions.push(
           {
             label: 'Send Summary to GP',
@@ -959,21 +1003,20 @@ export default function CaseWorkspace() {
               <h3>Email</h3>
               <div className="email-info">
                 <div className="field">
-                  <label>Patient Email:</label>
-                  <span>{extractValue(caseData.summary?.u_email) || 'Not Available'}</span>
+                  <label>Recipient:</label>
+                  <span>{extractValue(latestGpEmailComm?.u_recipient_address) || 'Not sent yet'}</span>
                 </div>
                 <div className="field">
-                  <label>Admin Send Summary:</label>
-                  <span>{adminSummarySent ? 'Sent' : 'Not Sent'}</span>
+                  <label>Subject:</label>
+                  <span>{latestGpEmailSubject}</span>
                 </div>
-                <div className="email-actions">
-                  <button
-                    className="action-button primary"
-                    onClick={() => handleRoleAction('markAdminSummarySent')}
-                    disabled={actionLoading || adminSummarySent}
-                  >
-                    {actionLoading ? 'Processing...' : 'Set Admin Send Summary'}
-                  </button>
+                <div className="field">
+                  <label>Email Body:</label>
+                  <div>{summaryEmailBody}</div>
+                </div>
+                <div className="field">
+                  <label>Delivery Status:</label>
+                  <span>{extractValue(latestGpEmailComm?.u_delivery_status) || 'Pending'}</span>
                 </div>
               </div>
             </div>
@@ -1010,9 +1053,11 @@ export default function CaseWorkspace() {
               
               {userRole === 'admin' && (
                 <div className="comm-actions">
-                  <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
-                    Send Summary to GP
-                  </button>
+                  {!adminSummarySent && (
+                    <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
+                      Send Summary to GP
+                    </button>
+                  )}
                   <button onClick={() => handleRoleAction('notifyPatient')} className="action-button secondary">
                     Notify Patient
                   </button>
