@@ -365,7 +365,7 @@ export default function AdminDashboard({ onSwitchRole }) {
             <button
               onClick={handleActivateDemo}
               disabled={demoStatus === 'loading'}
-              className="refresh-button"
+              className="refresh-button activate-demo-button"
               style={{ marginLeft: '8px', opacity: demoStatus === 'loading' ? 0.6 : 1, cursor: demoStatus === 'loading' ? 'not-allowed' : 'pointer' }}
             >
               {demoStatus === 'loading' ? 'Activating...' : 'Activate Demo'}

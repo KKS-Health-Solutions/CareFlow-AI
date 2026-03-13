@@ -944,7 +944,6 @@ export class DischargeCaseService {
    */
   async activateDemo() {
     try {
-      // TODO: DEMO_ACTIVATE_ENDPOINT is a placeholder. Swap it once the backend is ready.
       const response = await fetch(DEMO_ACTIVATE_ENDPOINT, {
         method: 'POST',
         headers: {
