@@ -143,10 +143,10 @@ export class DischargeCaseService {
   }
 
   // Doctor-specific methods
-  async getDoctorSignoffQueue() {
+  async getDoctorSignoffQueue(summaryStatus = 'ready_for_review') {
     try {
-      // Get summaries with status ready_for_review, dotwalking to get case fields
-      const summariesResponse = await fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=ready_for_review&sysparm_display_value=all&sysparm_fields=sys_id,u_summary_status,u_clinician_approved,u_discharge_case,u_discharge_case.u_patient_name,u_discharge_case.u_hospital_number,u_discharge_case.u_ward,u_discharge_case.u_discharging_status,u_discharge_case.u_due_date,u_discharge_case.assigned_to&sysparm_limit=50`, {
+      // Get summaries by status, dotwalking to get case fields
+      const summariesResponse = await fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=${encodeURIComponent(summaryStatus)}&sysparm_display_value=all&sysparm_fields=sys_id,u_summary_status,u_clinician_approved,u_discharge_case,u_discharge_case.u_patient_name,u_discharge_case.u_hospital_number,u_discharge_case.u_ward,u_discharge_case.u_discharging_status,u_discharge_case.u_due_date,u_discharge_case.assigned_to&sysparm_limit=50`, {
         headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
       });
 
@@ -823,6 +823,11 @@ export class DischargeCaseService {
   async requestMedClarification(caseId, notes) {
     await this.createCommunicationEntry(caseId, 'system', 'sent', 'audit', `Clarification requested: ${notes}`, null);
     return { success: true, message: 'Clarification request sent' };
+  }
+
+  async markAdminSummarySent(summaryId) {
+    const result = await this.updateSummary(summaryId, { u_admin_send_summary: true });
+    return result;
   }
 
   // Coordinator/Admin role actions

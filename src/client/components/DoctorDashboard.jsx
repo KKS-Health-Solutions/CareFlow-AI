@@ -23,8 +23,11 @@ export default function DoctorDashboard({ onSwitchRole }) {
       if (view === 'my-tasks') {
         const data = await service.getMyTasks('doctor');
         setMyTasksData(data);
+      } else if (view === 'draft-summaries') {
+        const data = await service.getDoctorSignoffQueue('draft');
+        setDoctorData(data);
       } else {
-        const data = await service.getDoctorSignoffQueue();
+        const data = await service.getDoctorSignoffQueue('ready_for_review');
         setDoctorData(data);
       }
     } catch (err) {
@@ -144,7 +147,13 @@ export default function DoctorDashboard({ onSwitchRole }) {
         <div className="doctor-dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1 style={{ marginRight: '10px' }}>👨‍⚕️ Doctor Sign-off</h1>
+          <h1 style={{ marginRight: '10px' }}>
+            {currentView === 'draft-summaries'
+              ? '📝 Draft Summaries'
+              : currentView === 'my-tasks'
+                ? '📋 My Tasks'
+                : '👨‍⚕️ Doctor Sign-off'}
+          </h1>
           <div className="header-actions">
             <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
@@ -248,6 +257,61 @@ export default function DoctorDashboard({ onSwitchRole }) {
             )}
           </div>
         </div>
+      ) : currentView === 'draft-summaries' ? (
+        <div className="cases-section">
+          <div className="cases-header">
+            <h2>Discharge Summaries in Draft</h2>
+            <p className="cases-subtitle">Draft discharge summaries awaiting clinical completion</p>
+          </div>
+
+          <div className="cases-table-container">
+            <table className="cases-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Ward</th>
+                  <th>Due Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doctorData.summaries.map((summary, index) => {
+                  const patientName = extractValue(summary['u_discharge_case.u_patient_name']);
+                  const hospitalNumber = extractValue(summary['u_discharge_case.u_hospital_number']);
+                  const ward = extractValue(summary['u_discharge_case.u_ward']);
+                  const dueDate = summary['u_discharge_case.u_due_date'];
+                  const caseId = typeof summary.u_discharge_case === 'object'
+                    ? summary.u_discharge_case.value
+                    : summary.u_discharge_case;
+
+                  return (
+                    <tr key={index} className="case-row" onClick={() => {
+                      if (caseId) window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank');
+                    }}>
+                      <td>
+                        <div className="patient-info">
+                          <span className="patient-name">{patientName || 'Unknown Patient'}</span>
+                          <span className="hospital-number">
+                            #{hospitalNumber || 'N/A'}
+                          </span>
+                        </div>
+                      </td>
+                      <td>{ward || '-'}</td>
+                      <td>{formatDate(dueDate)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {doctorData.summaries.length === 0 && (
+              <div className="no-cases">
+                <div className="no-cases-icon">❌</div>
+                <h3>No draft summaries</h3>
+                <p>There are currently no discharge summaries in draft.</p>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         /* ═══════════════ SIGN-OFF QUEUE VIEW ═══════════════ */
         <React.Fragment>
@@ -316,14 +380,14 @@ export default function DoctorDashboard({ onSwitchRole }) {
                           #{hospitalNumber || 'N/A'}
                         </span>
                       </div>
-                    </td>
-                    <td>{ward || '-'}</td>
-                    <td>{dischargeStatus ? getStatusBadge(dischargeStatus, 'discharge') : '-'}</td>
-                    <td>{getStatusBadge(summary.u_summary_status, 'summary')}</td>
-                    <td>{getStatusBadge(extractValue(summary.u_clinician_approved) === 'true' ? 'approved' : 'pending', 'approval')}</td>
-                    <td>{formatDate(dueDate)}</td>
-                  </tr>
-                );
+                      </td>
+                      <td>{ward || '-'}</td>
+                      <td>{dischargeStatus ? getStatusBadge(dischargeStatus, 'discharge') : '-'}</td>
+                      <td>{getStatusBadge(summary.u_summary_status, 'summary')}</td>
+                      <td>{getStatusBadge(extractValue(summary.u_clinician_approved) === 'true' ? 'approved' : 'pending', 'approval')}</td>
+                      <td>{formatDate(dueDate)}</td>
+                    </tr>
+                  );
               })}
             </tbody>
           </table>

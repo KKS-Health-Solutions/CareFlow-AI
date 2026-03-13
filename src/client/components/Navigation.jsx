@@ -24,6 +24,12 @@ export default function Navigation({ currentView, onNavigate, userRole = 'nurse'
             roles: ['doctor']
           },
           {
+            id: 'draft-summaries',
+            label: 'Draft Summaries',
+            icon: '📝',
+            roles: ['doctor']
+          },
+          {
             id: 'my-tasks',
             label: 'My Tasks',
             icon: '📋',
