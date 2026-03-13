@@ -9,7 +9,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('doctor-signoff');
-  const [taskFilters, setTaskFilters] = useState({ status: '', mrn: '' });
+  const [taskFilters, setTaskFilters] = useState({ status: 'open', mrn: '' });
 
   const service = new DischargeCaseService();
 
