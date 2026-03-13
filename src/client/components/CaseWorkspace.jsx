@@ -17,6 +17,7 @@ export default function CaseWorkspace() {
   const service = new DischargeCaseService();
 
   const [activeUserId, setActiveUserId] = useState('');
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
 
   const USER_ID_BY_ROLE = {
     nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
@@ -68,6 +69,7 @@ export default function CaseWorkspace() {
     try {
       setLoading(true);
       setError(null);
+      setShowEmailPreview(false);
       console.log('Loading case data for:', caseId);
       const data = await service.getCase(caseId);
       let summary = data.summary;
@@ -336,6 +338,79 @@ export default function CaseWorkspace() {
       `Discharge summary for ${extractValue(caseData?.case?.u_patient_name) || 'patient'}`
     : 'Not sent yet';
   const summaryEmailBody = extractValue(caseData?.summary?.u_email) || 'Not Available';
+  const summaryEmailPatientName = extractValue(caseData?.case?.u_patient_name) || '';
+  const normalizedSummaryEmailBody = summaryEmailBody !== 'Not Available'
+    ? String(summaryEmailBody)
+        .replace(/\s+/g, ' ')
+        .replace(
+          summaryEmailPatientName ? `for${summaryEmailPatientName}` : '',
+          summaryEmailPatientName ? `for ${summaryEmailPatientName}` : ''
+        )
+        .trim()
+    : '';
+  const parseEmailPreview = (emailBody) => {
+    if (!emailBody) return null;
+
+    const summaryMarker = 'DISCHARGE SUMMARY';
+    const summaryMarkerIndex = emailBody.indexOf(summaryMarker);
+    const proseSection = summaryMarkerIndex >= 0
+      ? emailBody.slice(0, summaryMarkerIndex).trim()
+      : emailBody;
+    const summarySection = summaryMarkerIndex >= 0
+      ? emailBody.slice(summaryMarkerIndex + summaryMarker.length).trim()
+      : '';
+
+    let introText = proseSection;
+    let signoff = '';
+    let sender = '';
+
+    const signoffMatch = proseSection.match(/^(.*?)(Kind regards,)\s*(.*)$/i);
+    if (signoffMatch) {
+      introText = signoffMatch[1].trim();
+      signoff = signoffMatch[2].trim();
+      sender = signoffMatch[3].trim();
+    }
+
+    const introParagraphs = introText
+      ? introText.split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean)
+      : [];
+
+    const sectionLabels = [
+      'PATIENT',
+      'HOSPITAL NUMBER',
+      'WARD',
+      'DISCHARGE DATE',
+      'DIAGNOSIS',
+      'HOSPITAL COURSE',
+      'DISCHARGE MEDICATIONS',
+      'FOLLOW-UP INSTRUCTIONS'
+    ];
+
+    const sections = [];
+    if (summarySection) {
+      const positions = sectionLabels
+        .map(label => ({ label, index: summarySection.indexOf(`${label}:`) }))
+        .filter(section => section.index >= 0)
+        .sort((a, b) => a.index - b.index);
+
+      positions.forEach((section, index) => {
+        const valueStart = section.index + section.label.length + 1;
+        const valueEnd = index < positions.length - 1 ? positions[index + 1].index : summarySection.length;
+        sections.push({
+          label: section.label,
+          value: summarySection.slice(valueStart, valueEnd).trim()
+        });
+      });
+    }
+
+    return {
+      introParagraphs,
+      signoff,
+      sender,
+      sections
+    };
+  };
+  const parsedEmailPreview = parseEmailPreview(normalizedSummaryEmailBody);
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
@@ -1011,14 +1086,54 @@ export default function CaseWorkspace() {
                   <span>{latestGpEmailSubject}</span>
                 </div>
                 <div className="field">
-                  <label>Email Body:</label>
-                  <div>{summaryEmailBody}</div>
-                </div>
-                <div className="field">
                   <label>Delivery Status:</label>
                   <span>{extractValue(latestGpEmailComm?.u_delivery_status) || 'Pending'}</span>
                 </div>
+                <div className="field email-body-field">
+                  <label>Email Body:</label>
+                  <div className="email-preview-actions">
+                    <button
+                      className="action-button secondary"
+                      onClick={() => setShowEmailPreview(prev => !prev)}
+                      disabled={!normalizedSummaryEmailBody}
+                    >
+                      {showEmailPreview ? 'Hide Preview' : 'Preview Email'}
+                    </button>
+                  </div>
+                </div>
               </div>
+              {showEmailPreview && parsedEmailPreview && (
+                <div className="email-preview-card">
+                  <div className="email-preview-header">
+                    <div className="email-preview-subject">{latestGpEmailSubject}</div>
+                    <div className="email-preview-meta">
+                      <span>To: {extractValue(latestGpEmailComm?.u_recipient_address) || 'Not sent yet'}</span>
+                      <span>Sent: {formatDateTime(latestGpEmailComm?.u_sent_on)}</span>
+                    </div>
+                  </div>
+                  <div className="email-preview-body">
+                    {parsedEmailPreview.introParagraphs.map((paragraph, index) => (
+                      <p key={index} className="email-preview-paragraph">{paragraph}</p>
+                    ))}
+                    {(parsedEmailPreview.signoff || parsedEmailPreview.sender) && (
+                      <div className="email-preview-signoff">
+                        {parsedEmailPreview.signoff && <div>{parsedEmailPreview.signoff}</div>}
+                        {parsedEmailPreview.sender && <div>{parsedEmailPreview.sender}</div>}
+                      </div>
+                    )}
+                    {parsedEmailPreview.sections.length > 0 && (
+                      <div className="email-preview-sections">
+                        {parsedEmailPreview.sections.map(section => (
+                          <div key={section.label} className="email-preview-section">
+                            <div className="email-preview-section-label">{section.label}</div>
+                            <div className="email-preview-section-value">{section.value || '-'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
