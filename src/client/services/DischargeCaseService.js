@@ -801,6 +801,8 @@ export class DischargeCaseService {
         'u_sent_to_gp_on',
         'u_email',
         'u_clinical_summary',
+        'u_diagnosis',
+        'u_hospital_course',
         'u_follow_up_instructions',
         'u_medications_on_discharge',
         'u_approved_on',

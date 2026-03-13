@@ -414,13 +414,28 @@ export default function CaseWorkspace() {
         .filter(section => section.index >= 0)
         .sort((a, b) => a.index - b.index);
 
+      // Map section labels to actual discharge case / summary field values
+      const fieldOverrides = {
+        'PATIENT': extractValue(caseData?.case?.u_patient_name),
+        'HOSPITAL NUMBER': extractValue(caseData?.case?.u_hospital_number),
+        'WARD': extractValue(caseData?.case?.u_ward),
+        'DISCHARGE DATE': formatDate(caseData?.case?.u_discharge_date),
+        'DIAGNOSIS': extractValue(caseData?.summary?.u_diagnosis),
+        'HOSPITAL COURSE': extractValue(caseData?.summary?.u_hospital_course),
+        'DISCHARGE MEDICATIONS': extractValue(caseData?.summary?.u_medications_on_discharge),
+        'FOLLOW-UP INSTRUCTIONS': extractValue(caseData?.summary?.u_follow_up_instructions),
+      };
+
       positions.forEach((section, index) => {
         const valueStart = section.index + section.label.length + 1;
         const valueEnd = index < positions.length - 1 ? positions[index + 1].index : summarySection.length;
-        sections.push({
-          label: section.label,
-          value: summarySection.slice(valueStart, valueEnd).trim()
-        });
+        const parsedValue = summarySection.slice(valueStart, valueEnd).trim();
+        // Use actual field value when the email text has a placeholder
+        const override = fieldOverrides[section.label];
+        const value = (!parsedValue || parsedValue.includes('[To be completed]'))
+          ? (override || parsedValue || '')
+          : parsedValue;
+        sections.push({ label: section.label, value });
       });
     }
 
@@ -1027,6 +1042,34 @@ export default function CaseWorkspace() {
                     <label>Clinical Summary:</label>
                     <div className="clinical-summary-text">
                       {extractValue(caseData.summary.u_clinical_summary) || 'No clinical summary available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Diagnosis:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_diagnosis) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Hospital Course:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_hospital_course) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Discharge Medications:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_medications_on_discharge) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Follow-Up Instructions:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_follow_up_instructions) || 'Not available'}
                     </div>
                   </div>
                   
