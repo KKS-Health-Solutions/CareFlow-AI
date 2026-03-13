@@ -19,7 +19,6 @@ Headers:
 Request Body:
     {
         "patient_name": "John Doe",
-        "hospital_number": "MRN-2026-0001",
         "admission_reason": "Hip Replacement Recovery",
         "ward": "General Surgery",
         "risk_level": "moderate"

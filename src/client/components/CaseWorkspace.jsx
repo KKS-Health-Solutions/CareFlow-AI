@@ -333,6 +333,11 @@ export default function CaseWorkspace() {
     return typeof field === 'object' ? field.display_value : field;
   };
 
+  const normalizeStatus = (status) => {
+    if (!status) return '';
+    return String(status).toLowerCase().replace(/[\s_-]+/g, '_');
+  };
+
   const getLatestGpEmailCommunication = () => {
     if (!caseData?.communicationLog?.length) return null;
 
@@ -402,7 +407,7 @@ export default function CaseWorkspace() {
       'WARD',
       'DISCHARGE DATE',
       'DIAGNOSIS',
-      'HOSPITAL COURSE',
+      'HOSPITAL COURSEz',
       'DISCHARGE MEDICATIONS',
       'FOLLOW-UP INSTRUCTIONS'
     ];
@@ -420,10 +425,10 @@ export default function CaseWorkspace() {
         'HOSPITAL NUMBER': extractValue(caseData?.case?.u_hospital_number),
         'WARD': extractValue(caseData?.case?.u_ward),
         'DISCHARGE DATE': formatDate(caseData?.case?.u_discharge_date),
-        'DIAGNOSIS': extractValue(caseData?.summary?.u_diagnosis),
-        'HOSPITAL COURSE': extractValue(caseData?.summary?.u_hospital_course),
-        'DISCHARGE MEDICATIONS': extractValue(caseData?.summary?.u_medications_on_discharge),
-        'FOLLOW-UP INSTRUCTIONS': extractValue(caseData?.summary?.u_follow_up_instructions),
+        'DIAGNOSIS': extractValue(caseData?.case?.u_diagnosis),
+        'HOSPITAL COURSEz': extractValue(caseData?.case?.u_hospital_course),
+        'DISCHARGE MEDICATIONS': extractValue(caseData?.case?.u_medication),
+        'FOLLOW-UP INSTRUCTIONS': extractValue(caseData?.case?.u_follow_up_instructions),
       };
 
       positions.forEach((section, index) => {
@@ -482,8 +487,8 @@ export default function CaseWorkspace() {
   const getRoleActions = () => {
     if (!caseData) return [];
 
-    const summaryStatus = extractValue(caseData.summary?.u_summary_status);
-    const dischargeStatus = extractValue(caseData.case.u_discharging_status);
+    const summaryStatus = normalizeStatus(extractValue(caseData.summary?.u_summary_status));
+    const dischargeStatus = normalizeStatus(extractValue(caseData.case.u_discharging_status));
     const tasksComplete = extractValue(caseData.case.u_tasks_complete);
     const adminSummaryAlreadySent = caseData.summary
       ? String(
@@ -500,15 +505,11 @@ export default function CaseWorkspace() {
     // Server-side RBAC is the real enforcement; UI hiding is courtesy.
 
     // Helper: normalize status string for comparison (handles display_value casing)
-    const isReadyForDischarge = dischargeStatus && 
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'ready_for_discharge';
+    const isReadyForDischarge = dischargeStatus === 'ready_for_discharge';
 
     // If the case is already discharged, hide task-completion and
     // "Mark Ready for Discharge" buttons for ALL roles.
-    const isDischarged = dischargeStatus &&
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
-    const isDraft = dischargeStatus &&
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'draft';
+    const isDischarged = dischargeStatus === 'discharged';
 
     if (userRole === 'nurse') {
       // Only show "Mark Ready for Discharge" if NOT already ready and NOT discharged
@@ -584,14 +585,6 @@ export default function CaseWorkspace() {
     // Admin sees coordinator-level actions but NOT per-role task-complete
     // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
     if (userRole === 'admin') {
-      // Admin can still mark ready for discharge if not already done and NOT discharged
-      if (!isReadyForDischarge && !isDischarged && !isDraft) {
-        actions.push({
-          label: 'Mark Ready for Discharge',
-          action: 'markReadyForDischarge',
-          variant: 'primary'
-        });
-      }
       if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
         actions.push(
           {
