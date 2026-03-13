@@ -31,6 +31,8 @@ export default function AdminDashboard({ onSwitchRole }) {
   const CASES_PER_PAGE = 5;
   const [selectedView, setSelectedView] = useState('overview'); // overview, exceptions, communications
   const [currentView, setCurrentView] = useState('admin-center'); // admin-center, failed-communications, my-tasks
+  const [demoStatus, setDemoStatus] = useState('idle'); // idle, loading, success, error
+  const [demoMessage, setDemoMessage] = useState('');
 
   const service = new DischargeCaseService();
 
@@ -60,6 +62,19 @@ export default function AdminDashboard({ onSwitchRole }) {
       setSelectedView('communications');
     } else if (viewId === 'admin-center') {
       setSelectedView('overview');
+    }
+  };
+
+  const handleActivateDemo = async () => {
+    setDemoStatus('loading');
+    setDemoMessage('');
+    try {
+      const result = await service.activateDemo();
+      setDemoStatus('success');
+      setDemoMessage(result.message || 'Demo activated successfully');
+    } catch (err) {
+      setDemoStatus('error');
+      setDemoMessage(`Failed to activate demo: ${err.message}`);
     }
   };
 
@@ -347,9 +362,42 @@ export default function AdminDashboard({ onSwitchRole }) {
             <button onClick={() => loadViewData(currentView)} className="refresh-button">
               Refresh
             </button>
+            <button
+              onClick={handleActivateDemo}
+              disabled={demoStatus === 'loading'}
+              className="refresh-button"
+              style={{ marginLeft: '8px', opacity: demoStatus === 'loading' ? 0.6 : 1, cursor: demoStatus === 'loading' ? 'not-allowed' : 'pointer' }}
+            >
+              {demoStatus === 'loading' ? 'Activating...' : 'Activate Demo'}
+            </button>
           </div>
         </div>
       </div>
+
+      {demoMessage && (
+        <div
+          style={{
+            padding: '10px 16px',
+            margin: '0 0 12px',
+            borderRadius: '6px',
+            fontSize: '14px',
+            background: demoStatus === 'success' ? '#e6f9ee' : '#fdecea',
+            color: demoStatus === 'success' ? '#1a7f37' : '#b3261e',
+            border: `1px solid ${demoStatus === 'success' ? '#a3d9b1' : '#f5c6cb'}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>{demoMessage}</span>
+          <button
+            onClick={() => { setDemoMessage(''); setDemoStatus('idle'); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {currentView === 'my-tasks' ? (
         /* ═══════════════ MY TASKS VIEW ═══════════════ */

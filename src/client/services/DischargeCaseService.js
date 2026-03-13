@@ -1,3 +1,7 @@
+// TODO: Replace with the real backend endpoint once it is available.
+const DEMO_ACTIVATE_ENDPOINT =
+  '/api/728557/careflow_ai_patient_discharge_case_api/demo/activate';
+
 export class DischargeCaseService {
   constructor() {
     this.dischargeCaseTable = "u_cflow_patient_discharge_case";
@@ -927,6 +931,38 @@ export class DischargeCaseService {
       return { success: true, message: 'Communication retry successful' };
     } catch (error) {
       await this.createCommunicationEntry(caseId, recipientType, 'failed', channel, recipientAddress, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger the demo-generation workflow.
+   * Admin-only — the backend endpoint is a placeholder/stub and will be
+   * replaced once the real implementation is available.
+   *
+   * @returns {object} { success: boolean, message: string }
+   */
+  async activateDemo() {
+    try {
+      // TODO: DEMO_ACTIVATE_ENDPOINT is a placeholder. Swap it once the backend is ready.
+      const response = await fetch(DEMO_ACTIVATE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-UserToken': window.g_ck
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Demo activation failed (${response.status}): ${errorText}`);
+      }
+
+      const json = await response.json();
+      return { success: true, message: json?.result?.message || 'Demo activated successfully' };
+    } catch (error) {
+      console.error('Error activating demo:', error);
       throw error;
     }
   }
