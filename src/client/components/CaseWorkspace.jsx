@@ -1037,34 +1037,6 @@ export default function CaseWorkspace() {
                       {extractValue(caseData.summary.u_clinical_summary) || 'No clinical summary available'}
                     </div>
                   </div>
-
-                  <div className="summary-field">
-                    <label>Diagnosis:</label>
-                    <div className="clinical-summary-text">
-                      {extractValue(caseData.summary.u_diagnosis) || 'Not available'}
-                    </div>
-                  </div>
-
-                  <div className="summary-field">
-                    <label>Hospital Course:</label>
-                    <div className="clinical-summary-text">
-                      {extractValue(caseData.summary.u_hospital_course) || 'Not available'}
-                    </div>
-                  </div>
-
-                  <div className="summary-field">
-                    <label>Discharge Medications:</label>
-                    <div className="clinical-summary-text">
-                      {extractValue(caseData.summary.u_medications_on_discharge) || 'Not available'}
-                    </div>
-                  </div>
-
-                  <div className="summary-field">
-                    <label>Follow-Up Instructions:</label>
-                    <div className="clinical-summary-text">
-                      {extractValue(caseData.summary.u_follow_up_instructions) || 'Not available'}
-                    </div>
-                  </div>
                   
                   <div className="summary-footer">
                     <small>Last updated: {formatDate(caseData.summary.sys_updated_on)}</small>

@@ -6,6 +6,15 @@ export class DischargeCaseService {
     this.commLogTable = "u_discharge_communication_log";
   }
 
+  extractScriptedResult(json) {
+    if (!json || typeof json !== 'object') return null;
+    if (json.result?.status === 'success') return json.result.data || null;
+    if (json.result?.result?.status === 'success') return json.result.result.data || null;
+    if (json.result?.data) return json.result.data;
+    if (json.result?.result?.data) return json.result.result.data;
+    return null;
+  }
+
   // Existing methods...
   async getDashboardData() {
     try {
@@ -461,20 +470,7 @@ export class DischargeCaseService {
 
         if (summaryResponse.ok) {
           const summaryData = await summaryResponse.json();
-          
-          // Handle double-nested result structure: result.result.data
-          // ServiceNow wraps the API response in an extra 'result' level
-          let actualData = summaryData;
-          
-          // Check if we have double-nested result
-          if (summaryData.result && summaryData.result.result) {
-            actualData = summaryData.result;
-          }
-          
-          // Extract the data from the result structure
-          if (actualData.result && actualData.result.status === 'success') {
-            summary = actualData.result.data;
-          }
+          summary = this.extractScriptedResult(summaryData);
         }
       } catch (summaryErr) {
         console.error('Error fetching discharge summary:', summaryErr);
@@ -773,17 +769,12 @@ export class DischargeCaseService {
       }
 
       const json = await response.json();
-      
-      // Handle the nested result structure from the API
-      if (json.result && json.result.status === 'success') {
-        return json.result.data;
-      }
-      
-      if (json.result && json.result.status === 'not_found') {
+
+      if (json?.result?.status === 'not_found' || json?.result?.result?.status === 'not_found') {
         return null;
       }
-      
-      return json.result.data || null;
+
+      return this.extractScriptedResult(json);
     } catch (error) {
       console.error('Error fetching discharge summary:', error);
       throw error;
@@ -795,6 +786,7 @@ export class DischargeCaseService {
       const fields = [
         'sys_id',
         'u_discharge_case',
+        'discharge_case',
         'u_summary_status',
         'u_admin_send_summary',
         'u_gp_delivery_status',
@@ -810,8 +802,14 @@ export class DischargeCaseService {
         'sys_updated_on'
       ].join(',');
 
+      const encodedQuery = [
+        `u_discharge_case=${caseId}`,
+        `discharge_case=${caseId}`,
+        'ORDERBYDESCsys_updated_on'
+      ].join('^OR');
+
       const response = await fetch(
-        `/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_discharge_case=${caseId}&sysparm_display_value=all&sysparm_limit=1&sysparm_fields=${fields}`,
+        `/api/now/table/${this.dischargeSummaryTable}?sysparm_query=${encodeURIComponent(encodedQuery)}&sysparm_display_value=all&sysparm_limit=1&sysparm_fields=${fields}`,
         {
           method: 'GET',
           headers: {
