@@ -1,6 +1,6 @@
 // TODO: Replace with the real backend endpoint once it is available.
 const DEMO_ACTIVATE_ENDPOINT =
-  '/api/728557/careflow_ai_patient_discharge_case_api/demo/activate';
+  '/api/728557/demo_mode_api/reset_and_seed?action=seed';
 
 export class DischargeCaseService {
   constructor() {
