@@ -43,7 +43,7 @@ export default function DischargeTable({ cases, onFilterChange, filters, viewTyp
 
   const handleCaseClick = (caseItem) => {
     const sysId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
-    window.open(`/patient_discharge_case.do?sys_id=${sysId}&role=${role}`, '_blank');
+    window.location.href = `/patient_discharge_case.do?sys_id=${sysId}&role=${role}`;
   };
 
   return (

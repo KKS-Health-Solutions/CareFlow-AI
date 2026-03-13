@@ -41,7 +41,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
   const handleCaseClick = (caseItem) => {
     const caseId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
     // Use the existing case workspace page
-    window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank');
+    window.location.href = `/patient_discharge_case.do?sys_id=${caseId}&role=doctor`;
   };
 
   const formatDate = (dateValue) => {
@@ -208,7 +208,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
                   const caseId = typeof task.u_discharge_case === 'object' ? task.u_discharge_case.value : task.u_discharge_case;
 
                   return (
-                    <tr key={index} className="case-row" onClick={() => window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank')}>
+                    <tr key={index} className="case-row" onClick={() => window.location.href = `/patient_discharge_case.do?sys_id=${caseId}&role=doctor`}>
                       <td>
                         <div className="patient-info">
                           <span className="patient-name">{patientName || 'Unknown Patient'}</span>
@@ -307,7 +307,7 @@ export default function DoctorDashboard({ onSwitchRole }) {
 
                 return (
                   <tr key={index} className="case-row" onClick={() => {
-                    if (caseId) window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=doctor`, '_blank');
+                    if (caseId) window.location.href = `/patient_discharge_case.do?sys_id=${caseId}&role=doctor`;
                   }}>
                     <td>
                       <div className="patient-info">

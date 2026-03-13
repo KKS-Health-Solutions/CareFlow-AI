@@ -52,7 +52,7 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     
     if (caseId) {
       // Use the existing case workspace page
-      window.open(`/patient_discharge_case.do?sys_id=${caseId}&role=pharmacy`, '_blank');
+      window.location.href = `/patient_discharge_case.do?sys_id=${caseId}&role=pharmacy`;
     } else {
       alert('No related discharge case found for this task.');
     }

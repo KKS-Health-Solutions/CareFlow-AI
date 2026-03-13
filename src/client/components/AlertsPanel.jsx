@@ -37,7 +37,7 @@ export default function AlertsPanel({ alertCases }) {
 
   const handleCaseClick = (caseItem) => {
     const sysId = typeof caseItem.sys_id === 'object' ? caseItem.sys_id.value : caseItem.sys_id;
-    window.open(`/patient_discharge_case.do?sys_id=${sysId}`, '_blank');
+    window.location.href = `/patient_discharge_case.do?sys_id=${sysId}`;
   };
 
   return (
