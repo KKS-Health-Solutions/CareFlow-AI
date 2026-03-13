@@ -382,9 +382,6 @@ export default function CaseWorkspace() {
     const proseSection = summaryMarkerIndex >= 0
       ? emailBody.slice(0, summaryMarkerIndex).trim()
       : emailBody;
-    const summarySection = summaryMarkerIndex >= 0
-      ? emailBody.slice(summaryMarkerIndex + summaryMarker.length).trim()
-      : '';
 
     let introText = proseSection;
     let signoff = '';
@@ -401,48 +398,18 @@ export default function CaseWorkspace() {
       ? introText.split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean)
       : [];
 
-    const sectionLabels = [
-      'PATIENT',
-      'HOSPITAL NUMBER',
-      'WARD',
-      'DISCHARGE DATE',
-      'DIAGNOSIS',
-      'HOSPITAL COURSEz',
-      'DISCHARGE MEDICATIONS',
-      'FOLLOW-UP INSTRUCTIONS'
+    const sectionDefinitions = [
+      { label: 'ADMISSION REASON', value: extractValue(caseData?.case?.u_admission_reason) },
+      { label: 'DIAGNOSIS', value: extractValue(caseData?.case?.u_diagnosis) },
+      { label: 'HOSPITAL COURSE', value: extractValue(caseData?.case?.u_hospital_course) },
+      { label: 'FOLLOW-UP INSTRUCTIONS', value: extractValue(caseData?.case?.u_follow_up_instructions) },
+      { label: 'MEDICATIONS', value: extractValue(caseData?.case?.u_medication) },
     ];
 
-    const sections = [];
-    if (summarySection) {
-      const positions = sectionLabels
-        .map(label => ({ label, index: summarySection.indexOf(`${label}:`) }))
-        .filter(section => section.index >= 0)
-        .sort((a, b) => a.index - b.index);
-
-      // Map section labels to actual discharge case / summary field values
-      const fieldOverrides = {
-        'PATIENT': extractValue(caseData?.case?.u_patient_name),
-        'HOSPITAL NUMBER': extractValue(caseData?.case?.u_hospital_number),
-        'WARD': extractValue(caseData?.case?.u_ward),
-        'DISCHARGE DATE': formatDate(caseData?.case?.u_discharge_date),
-        'DIAGNOSIS': extractValue(caseData?.case?.u_diagnosis),
-        'HOSPITAL COURSEz': extractValue(caseData?.case?.u_hospital_course),
-        'DISCHARGE MEDICATIONS': extractValue(caseData?.case?.u_medication),
-        'FOLLOW-UP INSTRUCTIONS': extractValue(caseData?.case?.u_follow_up_instructions),
-      };
-
-      positions.forEach((section, index) => {
-        const valueStart = section.index + section.label.length + 1;
-        const valueEnd = index < positions.length - 1 ? positions[index + 1].index : summarySection.length;
-        const parsedValue = summarySection.slice(valueStart, valueEnd).trim();
-        // Use actual field value when the email text has a placeholder
-        const override = fieldOverrides[section.label];
-        const value = (!parsedValue || parsedValue.includes('[To be completed]'))
-          ? (override || parsedValue || '')
-          : parsedValue;
-        sections.push({ label: section.label, value });
-      });
-    }
+    const sections = sectionDefinitions.map(section => ({
+      label: section.label,
+      value: section.value || '-'
+    }));
 
     return {
       introParagraphs,
