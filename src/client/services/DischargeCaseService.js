@@ -803,6 +803,48 @@ export class DischargeCaseService {
       throw error;
     }
   }
+
+  async getDischargeSummaryRecord(caseId) {
+    try {
+      const fields = [
+        'sys_id',
+        'u_discharge_case',
+        'u_summary_status',
+        'u_admin_send_summary',
+        'u_gp_delivery_status',
+        'u_sent_to_gp_on',
+        'u_email',
+        'u_clinical_summary',
+        'u_follow_up_instructions',
+        'u_medications_on_discharge',
+        'u_approved_on',
+        'sys_created_on',
+        'sys_updated_on'
+      ].join(',');
+
+      const response = await fetch(
+        `/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_discharge_case=${caseId}&sysparm_display_value=all&sysparm_limit=1&sysparm_fields=${fields}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-UserToken': window.g_ck
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch discharge summary record: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      return json.result?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching discharge summary record:', error);
+      throw error;
+    }
+  }
+
   async requestSummaryReview(summaryId) {
     const result = await this.updateSummary(summaryId, { u_summary_status: 'ready_for_review' });
     return result;
@@ -841,16 +883,12 @@ export class DischargeCaseService {
     return { success: true, message: 'Clarification request sent' };
   }
 
-  async markAdminSummarySent(summaryId) {
-    const result = await this.updateSummary(summaryId, { u_admin_send_summary: true });
-    return result;
-  }
-
   // Coordinator/Admin role actions
   async sendSummaryToGP(caseId, summaryId, gpEmail) {
     try {
       if (summaryId) {
         await this.updateSummary(summaryId, { 
+          u_admin_send_summary: true,
           u_gp_delivery_status: 'sent',
           u_sent_to_gp_on: new Date().toISOString()
         });
