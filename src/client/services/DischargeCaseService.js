@@ -444,55 +444,41 @@ export class DischargeCaseService {
 
       const { result } = await response.json();
       
-      // Check discharge status - only fetch summary if patient is discharged
-      const dischargeStatus = typeof result.u_discharging_status === 'object' 
-        ? result.u_discharging_status.value 
-        : result.u_discharging_status;
-      
-      const isDischargedStatus = dischargeStatus && 
-        dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
-      
-      // Fetch discharge summary only if the case is discharged
+      // Always attempt to fetch the discharge summary so it is available
+      // as soon as the record exists (not only after status flips to "discharged").
       let summary = null;
-      if (isDischargedStatus) {
-        try {
-          const summaryResponse = await fetch(
-            `/api/728557/get_discharge_summary/discharge_case/${sysId}/summary`,
-            {
-              method: 'GET',
-              headers: {
-                'Accept': 'application/json',
-                'X-UserToken': window.g_ck
-              }
+      try {
+        const summaryResponse = await fetch(
+          `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${sysId}/summary`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'X-UserToken': window.g_ck
             }
-          );
-
-          if (summaryResponse.ok) {
-            const summaryData = await summaryResponse.json();
-            
-            // Handle double-nested result structure: result.result.data
-            // ServiceNow wraps the API response in an extra 'result' level
-            let actualData = summaryData;
-            
-            // Check if we have double-nested result
-            if (summaryData.result && summaryData.result.result) {
-              actualData = summaryData.result;
-            }
-            
-            // Extract the data from the result structure
-            if (actualData.result && actualData.result.status === 'success') {
-              summary = actualData.result.data;
-            } else if (actualData.result && actualData.result.status === 'not_found') {
-              console.warn('⚠️ Case is discharged but no summary found. Summary may need to be created.');
-            }
-          } else if (summaryResponse.status === 404) {
-            console.warn('⚠️ Case is discharged but no summary found (404). Summary may need to be created.');
           }
-        } catch (summaryErr) {
-          console.error('Error fetching discharge summary:', summaryErr);
+        );
+
+        if (summaryResponse.ok) {
+          const summaryData = await summaryResponse.json();
+          
+          // Handle double-nested result structure: result.result.data
+          // ServiceNow wraps the API response in an extra 'result' level
+          let actualData = summaryData;
+          
+          // Check if we have double-nested result
+          if (summaryData.result && summaryData.result.result) {
+            actualData = summaryData.result;
+          }
+          
+          // Extract the data from the result structure
+          if (actualData.result && actualData.result.status === 'success') {
+            summary = actualData.result.data;
+          }
         }
+      } catch (summaryErr) {
+        console.error('Error fetching discharge summary:', summaryErr);
       }
-      // If not discharged, we skip fetching the summary entirely (no logs, no API call)
 
       const tasksResponse = await fetch(`/api/now/table/${this.dischargeTaskTable}?sysparm_query=u_discharge_case=${sysId}&sysparm_display_value=all`, {
         headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
@@ -767,7 +753,7 @@ export class DischargeCaseService {
     try {
       // Use the correct API endpoint
       const response = await fetch(
-        `/api/728557/get_discharge_summary/discharge_case/${caseId}/summary`,
+        `/api/728557/careflow_ai_patient_discharge_case_api/discharge_case/${caseId}/summary`,
         {
           method: 'GET',
           headers: {
