@@ -545,7 +545,7 @@ export default function CaseWorkspace() {
     // Admin sees coordinator-level actions but NOT per-role task-complete
     // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
     if (userRole === 'admin') {
-  if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
+  if (summaryStatus === 'clinician_approved') {
     actions.push({
       label: 'Notify Patient',
       action: 'notifyPatient',
@@ -553,7 +553,6 @@ export default function CaseWorkspace() {
     });
   }
 
-  // Admin can still mark ready for discharge if not already done and NOT discharged
   if (!isReadyForDischarge && !isDischarged && !isDraft) {
     actions.push({
       label: 'Mark Ready for Discharge',
@@ -569,7 +568,7 @@ export default function CaseWorkspace() {
       variant: 'primary'
     });
   }
-  
+
   actions.push(
     {
       label: 'Schedule Follow-Up',
@@ -1169,17 +1168,14 @@ export default function CaseWorkspace() {
               )}
               
               {userRole === 'admin' && (
-                <div className="comm-actions">
-                  {!adminSummarySent && (
-                    <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
-                      Send Summary to GP
-                    </button>
-                  )}
-                  <button onClick={() => handleRoleAction('notifyPatient')} className="action-button secondary">
-                    Notify Patient
-                  </button>
-                </div>
-              )}
+  <div className="comm-actions">
+    {!adminSummarySent && (
+      <button onClick={() => handleRoleAction('sendSummaryToGP')} className="action-button primary">
+        Send Summary to GP
+      </button>
+    )}
+  </div>
+)}
             </div>
           )}
         </div>
