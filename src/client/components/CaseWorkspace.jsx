@@ -323,6 +323,9 @@ export default function CaseWorkspace() {
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
+
+  const ROLE_TASK_ACTION_MAP = { doctor: 'openDoctorTaskModal', pharmacy: 'openPharmacyTaskModal', nurse: 'openNurseTaskModal' };
+  const ROLE_TASK_LABEL_MAP = { doctor: 'Do my task', pharmacy: 'Do task', nurse: 'Confirm discharge info discussed' };
   /**
    * Returns true when the discharge summary exists and has progressed past
    * the initial draft stage, meaning it is ready to be opened/viewed.
@@ -825,13 +828,10 @@ export default function CaseWorkspace() {
                           {!hideThisRoleButton  && (userRole === role || userRole === 'admin') && (
                             <button
                               className="action-button success small"
-                              onClick={() => {
-                                const actionMap = { doctor: 'openDoctorTaskModal', pharmacy: 'openPharmacyTaskModal', nurse: 'openNurseTaskModal' };
-                                handleRoleAction(actionMap[role] || `complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`);
-                              }}
+                              onClick={() => handleRoleAction(ROLE_TASK_ACTION_MAP[role] || `complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`)}
                               disabled={actionLoading}
                             >
-                              {actionLoading ? 'Processing...' : { doctor: 'Do my task', pharmacy: 'Do task', nurse: 'Confirm discharge info discussed' }[role] || `Mark ${role} tasks complete`}
+                              {actionLoading ? 'Processing...' : ROLE_TASK_LABEL_MAP[role] || `Mark ${role} tasks complete`}
                             </button>
                           )}
                         </div>
@@ -1102,8 +1102,8 @@ export default function CaseWorkspace() {
                 className="action-button success"
                 disabled={actionLoading}
                 onClick={async () => {
-                  setDoctorModalOpen(false);
                   await handleRoleAction('completeDoctorTaskWithDetails', doctorForm);
+                  setDoctorModalOpen(false);
                 }}
               >
                 {actionLoading ? 'Processing...' : 'Submit & Complete Task'}
@@ -1135,8 +1135,8 @@ export default function CaseWorkspace() {
                 className="action-button success"
                 disabled={actionLoading}
                 onClick={async () => {
-                  setPharmacyModalOpen(false);
                   await handleRoleAction('completePharmacyTasks');
+                  setPharmacyModalOpen(false);
                 }}
               >
                 {actionLoading ? 'Processing...' : 'Dispense Medication'}
@@ -1168,8 +1168,8 @@ export default function CaseWorkspace() {
                 className="action-button success"
                 disabled={actionLoading}
                 onClick={async () => {
-                  setNurseModalOpen(false);
                   await handleRoleAction('completeNurseTasks');
+                  setNurseModalOpen(false);
                 }}
               >
                 {actionLoading ? 'Processing...' : 'Discussed with Patient'}
