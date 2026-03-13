@@ -906,13 +906,12 @@ export class DischargeCaseService {
   }
 
   async scheduleFollowUp(caseId, followUpDate, notes) {
-    const result = await this.updateCase(caseId, { 
-      u_due_date: followUpDate
-    });
-    
-    await this.createCommunicationEntry(caseId, 'system', 'sent', 'audit', `Follow-up scheduled: ${notes}`, null);
-    return result;
-  }
+  const result = await this.updateCase(caseId, { 
+    u_due_date: followUpDate
+  });
+
+  return result;
+}
 
   async sendFollowUpReminder(caseId, recipientType, recipientAddress) {
     await this.createCommunicationEntry(caseId, recipientType, 'sent', 'email', recipientAddress, null);

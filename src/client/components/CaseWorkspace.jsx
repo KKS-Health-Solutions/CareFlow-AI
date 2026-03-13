@@ -545,42 +545,44 @@ export default function CaseWorkspace() {
     // Admin sees coordinator-level actions but NOT per-role task-complete
     // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
     if (userRole === 'admin') {
-      // Admin can still mark ready for discharge if not already done and NOT discharged
-      if (!isReadyForDischarge && !isDischarged && !isDraft) {
-        actions.push({
-          label: 'Mark Ready for Discharge',
-          action: 'markReadyForDischarge',
-          variant: 'primary'
-        });
-      }
-      if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
-        actions.push(
-          {
-            label: 'Send Summary to GP',
-            action: 'sendSummaryToGP',
-            variant: 'primary'
-          },
-          {
-            label: 'Notify Patient',
-            action: 'notifyPatient',
-            variant: 'secondary'
-          }
-        );
-      }
-      
-      actions.push(
-        {
-          label: 'Schedule Follow-Up',
-          action: 'scheduleFollowUp',
-          variant: 'info'
-        },
-        {
-          label: 'Send Follow-Up Reminder',
-          action: 'sendFollowUpReminder',
-          variant: 'info'
-        }
-      );
+  if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
+    actions.push({
+      label: 'Notify Patient',
+      action: 'notifyPatient',
+      variant: 'secondary'
+    });
+  }
+
+  // Admin can still mark ready for discharge if not already done and NOT discharged
+  if (!isReadyForDischarge && !isDischarged && !isDraft) {
+    actions.push({
+      label: 'Mark Ready for Discharge',
+      action: 'markReadyForDischarge',
+      variant: 'primary'
+    });
+  }
+
+  if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
+    actions.push({
+      label: 'Send Summary to GP',
+      action: 'sendSummaryToGP',
+      variant: 'primary'
+    });
+  }
+  
+  actions.push(
+    {
+      label: 'Schedule Follow-Up',
+      action: 'scheduleFollowUp',
+      variant: 'info'
+    },
+    {
+      label: 'Send Follow-Up Reminder',
+      action: 'sendFollowUpReminder',
+      variant: 'info'
     }
+  );
+}
 
     return actions;
   };
