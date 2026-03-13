@@ -19,6 +19,12 @@ export default function CaseWorkspace() {
   const [activeUserId, setActiveUserId] = useState('');
   const [showEmailPreview, setShowEmailPreview] = useState(false);
 
+  // Modal state for role-specific task flows
+  const [doctorModalOpen, setDoctorModalOpen] = useState(false);
+  const [doctorForm, setDoctorForm] = useState({ u_diagnosis: '', u_hospital_course: '', u_follow_up_instructions: '', u_medication: '' });
+  const [pharmacyModalOpen, setPharmacyModalOpen] = useState(false);
+  const [nurseModalOpen, setNurseModalOpen] = useState(false);
+
   const USER_ID_BY_ROLE = {
     nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
     doctor: '87efb319c38b72100fa7bd43e4013164',
@@ -206,6 +212,21 @@ export default function CaseWorkspace() {
         case 'completePharmacyTasks':
           result = await service.completeTasksForUser(caseId, 'pharmacy');
           break;
+
+        // Role-specific task modals
+        case 'openDoctorTaskModal':
+          setDoctorForm({ u_diagnosis: '', u_hospital_course: '', u_follow_up_instructions: '', u_medication: '' });
+          setDoctorModalOpen(true);
+          break;
+        case 'openPharmacyTaskModal':
+          setPharmacyModalOpen(true);
+          break;
+        case 'openNurseTaskModal':
+          setNurseModalOpen(true);
+          break;
+        case 'completeDoctorTaskWithDetails':
+          result = await service.completeDoctorTaskWithDetails(caseId, params);
+          break;
           
         // ====================
         // DOCTOR ACTIONS
@@ -312,6 +333,11 @@ export default function CaseWorkspace() {
     return typeof field === 'object' ? field.display_value : field;
   };
 
+  const normalizeStatus = (status) => {
+    if (!status) return '';
+    return String(status).toLowerCase().replace(/[\s_-]+/g, '_');
+  };
+
   const getLatestGpEmailCommunication = () => {
     if (!caseData?.communicationLog?.length) return null;
 
@@ -381,7 +407,7 @@ export default function CaseWorkspace() {
       'WARD',
       'DISCHARGE DATE',
       'DIAGNOSIS',
-      'HOSPITAL COURSE',
+      'HOSPITAL COURSEz',
       'DISCHARGE MEDICATIONS',
       'FOLLOW-UP INSTRUCTIONS'
     ];
@@ -393,13 +419,28 @@ export default function CaseWorkspace() {
         .filter(section => section.index >= 0)
         .sort((a, b) => a.index - b.index);
 
+      // Map section labels to actual discharge case / summary field values
+      const fieldOverrides = {
+        'PATIENT': extractValue(caseData?.case?.u_patient_name),
+        'HOSPITAL NUMBER': extractValue(caseData?.case?.u_hospital_number),
+        'WARD': extractValue(caseData?.case?.u_ward),
+        'DISCHARGE DATE': formatDate(caseData?.case?.u_discharge_date),
+        'DIAGNOSIS': extractValue(caseData?.case?.u_diagnosis),
+        'HOSPITAL COURSEz': extractValue(caseData?.case?.u_hospital_course),
+        'DISCHARGE MEDICATIONS': extractValue(caseData?.case?.u_medication),
+        'FOLLOW-UP INSTRUCTIONS': extractValue(caseData?.case?.u_follow_up_instructions),
+      };
+
       positions.forEach((section, index) => {
         const valueStart = section.index + section.label.length + 1;
         const valueEnd = index < positions.length - 1 ? positions[index + 1].index : summarySection.length;
-        sections.push({
-          label: section.label,
-          value: summarySection.slice(valueStart, valueEnd).trim()
-        });
+        const parsedValue = summarySection.slice(valueStart, valueEnd).trim();
+        // Use actual field value when the email text has a placeholder
+        const override = fieldOverrides[section.label];
+        const value = (!parsedValue || parsedValue.includes('[To be completed]'))
+          ? (override || parsedValue || '')
+          : parsedValue;
+        sections.push({ label: section.label, value });
       });
     }
 
@@ -414,6 +455,9 @@ export default function CaseWorkspace() {
 
   const tasksForActiveUser = taskSummaryByRole?.tasks || [];
   const hideMyTasksButton = areAllTasksComplete(tasksForActiveUser);
+
+  const ROLE_TASK_ACTION_MAP = { doctor: 'openDoctorTaskModal', pharmacy: 'openPharmacyTaskModal', nurse: 'openNurseTaskModal' };
+  const ROLE_TASK_LABEL_MAP = { doctor: 'Do my task', pharmacy: 'Do task', nurse: 'Confirm discharge info discussed' };
   /**
    * Returns true when the discharge summary exists and has progressed past
    * the initial draft stage, meaning it is ready to be opened/viewed.
@@ -443,8 +487,8 @@ export default function CaseWorkspace() {
   const getRoleActions = () => {
     if (!caseData) return [];
 
-    const summaryStatus = extractValue(caseData.summary?.u_summary_status);
-    const dischargeStatus = extractValue(caseData.case.u_discharging_status);
+    const summaryStatus = normalizeStatus(extractValue(caseData.summary?.u_summary_status));
+    const dischargeStatus = normalizeStatus(extractValue(caseData.case.u_discharging_status));
     const tasksComplete = extractValue(caseData.case.u_tasks_complete);
     const adminSummaryAlreadySent = caseData.summary
       ? String(
@@ -461,15 +505,11 @@ export default function CaseWorkspace() {
     // Server-side RBAC is the real enforcement; UI hiding is courtesy.
 
     // Helper: normalize status string for comparison (handles display_value casing)
-    const isReadyForDischarge = dischargeStatus && 
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'ready_for_discharge';
+    const isReadyForDischarge = dischargeStatus === 'ready_for_discharge';
 
     // If the case is already discharged, hide task-completion and
     // "Mark Ready for Discharge" buttons for ALL roles.
-    const isDischarged = dischargeStatus &&
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'discharged';
-    const isDraft = dischargeStatus &&
-      dischargeStatus.toLowerCase().replace(/[\s_-]+/g, '_') === 'draft';
+    const isDischarged = dischargeStatus === 'discharged';
 
     if (userRole === 'nurse') {
       // Only show "Mark Ready for Discharge" if NOT already ready and NOT discharged
@@ -483,8 +523,8 @@ export default function CaseWorkspace() {
       // Only show if there are open nurse tasks and case is NOT discharged
       if (isReadyForDischarge && !hideMyTasksButton) {
         actions.push({
-          label: 'Nurse: Mark my tasks complete',
-          action: 'completeNurseTasks',
+          label: 'Confirm discharge info discussed',
+          action: 'openNurseTaskModal',
           variant: 'success'
         });
       }
@@ -515,8 +555,8 @@ export default function CaseWorkspace() {
       // Only show if there are open doctor tasks and case is NOT discharged
       if (isReadyForDischarge && !hideMyTasksButton) {
         actions.push({
-          label: 'Doctor: Mark my tasks complete',
-          action: 'completeDoctorTasks',
+          label: 'Do my task',
+          action: 'openDoctorTaskModal',
           variant: 'success'
         });
       }
@@ -535,8 +575,8 @@ export default function CaseWorkspace() {
       // Only show if there are open pharmacy tasks and case is NOT discharged
       if (isReadyForDischarge && !hideMyTasksButton) {
         actions.push({
-          label: 'Pharmacy: Mark my tasks complete',
-          action: 'completePharmacyTasks',
+          label: 'Do task',
+          action: 'openPharmacyTaskModal',
           variant: 'success'
         });
       }
@@ -545,14 +585,6 @@ export default function CaseWorkspace() {
     // Admin sees coordinator-level actions but NOT per-role task-complete
     // buttons or "Mark Meds Reviewed" (those belong to their specific roles).
     if (userRole === 'admin') {
-      // Admin can still mark ready for discharge if not already done and NOT discharged
-      if (!isReadyForDischarge && !isDischarged && !isDraft) {
-        actions.push({
-          label: 'Mark Ready for Discharge',
-          action: 'markReadyForDischarge',
-          variant: 'primary'
-        });
-      }
       if (summaryStatus === 'clinician_approved' && !adminSummaryAlreadySent) {
         actions.push(
           {
@@ -711,7 +743,10 @@ export default function CaseWorkspace() {
     if (hideMyTasksButton && (
         a.action === 'completeNurseTasks' ||
         a.action === 'completeDoctorTasks' ||
-        a.action === 'completePharmacyTasks'
+        a.action === 'completePharmacyTasks' ||
+        a.action === 'openDoctorTaskModal' ||
+        a.action === 'openPharmacyTaskModal' ||
+        a.action === 'openNurseTaskModal'
     )) {
       return false;
     }
@@ -920,10 +955,10 @@ export default function CaseWorkspace() {
                           {!hideThisRoleButton  && (userRole === role || userRole === 'admin') && (
                             <button
                               className="action-button success small"
-                              onClick={() => handleRoleAction(`complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`)}
+                              onClick={() => handleRoleAction(ROLE_TASK_ACTION_MAP[role] || `complete${role.charAt(0).toUpperCase() + role.slice(1)}Tasks`)}
                               disabled={actionLoading}
                             >
-                              {actionLoading ? 'Processing...' : `Mark ${role} tasks complete`}
+                              {actionLoading ? 'Processing...' : ROLE_TASK_LABEL_MAP[role] || `Mark ${role} tasks complete`}
                             </button>
                           )}
                         </div>
@@ -1000,6 +1035,34 @@ export default function CaseWorkspace() {
                     <label>Clinical Summary:</label>
                     <div className="clinical-summary-text">
                       {extractValue(caseData.summary.u_clinical_summary) || 'No clinical summary available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Diagnosis:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_diagnosis) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Hospital Course:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_hospital_course) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Discharge Medications:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_medications_on_discharge) || 'Not available'}
+                    </div>
+                  </div>
+
+                  <div className="summary-field">
+                    <label>Follow-Up Instructions:</label>
+                    <div className="clinical-summary-text">
+                      {extractValue(caseData.summary.u_follow_up_instructions) || 'Not available'}
                     </div>
                   </div>
                   
@@ -1182,6 +1245,135 @@ export default function CaseWorkspace() {
           )}
         </div>
       </div>
+
+      {/* ─── Doctor Task Modal ─── */}
+      {doctorModalOpen && (
+        <div className="task-modal-overlay" onClick={() => setDoctorModalOpen(false)}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <div className="task-modal-header">
+              <h3>Complete Discharge Details</h3>
+              <button className="task-modal-close" onClick={() => setDoctorModalOpen(false)}>✕</button>
+            </div>
+            <div className="task-modal-body">
+              <div className="task-modal-field">
+                <label>Diagnosis</label>
+                <textarea
+                  value={doctorForm.u_diagnosis}
+                  onChange={e => setDoctorForm(f => ({ ...f, u_diagnosis: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter diagnosis..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Hospital Course</label>
+                <textarea
+                  value={doctorForm.u_hospital_course}
+                  onChange={e => setDoctorForm(f => ({ ...f, u_hospital_course: e.target.value }))}
+                  rows={3}
+                  placeholder="Describe the hospital course..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Follow-Up Instructions</label>
+                <textarea
+                  value={doctorForm.u_follow_up_instructions}
+                  onChange={e => setDoctorForm(f => ({ ...f, u_follow_up_instructions: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter follow-up instructions..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Medication</label>
+                <textarea
+                  value={doctorForm.u_medication}
+                  onChange={e => setDoctorForm(f => ({ ...f, u_medication: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter prescribed medication..."
+                />
+              </div>
+            </div>
+            <div className="task-modal-footer">
+              <button className="action-button secondary" onClick={() => setDoctorModalOpen(false)}>Cancel</button>
+              <button
+                className="action-button success"
+                disabled={actionLoading}
+                onClick={async () => {
+                  await handleRoleAction('completeDoctorTaskWithDetails', doctorForm);
+                  setDoctorModalOpen(false);
+                }}
+              >
+                {actionLoading ? 'Processing...' : 'Submit & Complete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Pharmacy Task Modal ─── */}
+      {pharmacyModalOpen && (
+        <div className="task-modal-overlay" onClick={() => setPharmacyModalOpen(false)}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <div className="task-modal-header">
+              <h3>Dispense Medication</h3>
+              <button className="task-modal-close" onClick={() => setPharmacyModalOpen(false)}>✕</button>
+            </div>
+            <div className="task-modal-body">
+              <div className="task-modal-field">
+                <label>Prescribed Medication</label>
+                <div className="task-modal-preview">
+                  {extractValue(caseData.case.u_medication) || 'No medication information available.'}
+                </div>
+              </div>
+            </div>
+            <div className="task-modal-footer">
+              <button className="action-button secondary" onClick={() => setPharmacyModalOpen(false)}>Cancel</button>
+              <button
+                className="action-button success"
+                disabled={actionLoading}
+                onClick={async () => {
+                  await handleRoleAction('completePharmacyTasks');
+                  setPharmacyModalOpen(false);
+                }}
+              >
+                {actionLoading ? 'Processing...' : 'Dispense Medication'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Nurse Task Modal ─── */}
+      {nurseModalOpen && (
+        <div className="task-modal-overlay" onClick={() => setNurseModalOpen(false)}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <div className="task-modal-header">
+              <h3>Confirm Discharge Discussion</h3>
+              <button className="task-modal-close" onClick={() => setNurseModalOpen(false)}>✕</button>
+            </div>
+            <div className="task-modal-body">
+              <div className="task-modal-field">
+                <label>Follow-Up Instructions</label>
+                <div className="task-modal-preview">
+                  {extractValue(caseData.case.u_follow_up_instructions) || 'No follow-up instructions available.'}
+                </div>
+              </div>
+            </div>
+            <div className="task-modal-footer">
+              <button className="action-button secondary" onClick={() => setNurseModalOpen(false)}>Cancel</button>
+              <button
+                className="action-button success"
+                disabled={actionLoading}
+                onClick={async () => {
+                  await handleRoleAction('completeNurseTasks');
+                  setNurseModalOpen(false);
+                }}
+              >
+                {actionLoading ? 'Processing...' : 'Discussed with Patient'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
