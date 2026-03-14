@@ -138,6 +138,8 @@ export default function CaseWorkspace() {
       const caseId = typeof caseData.case.sys_id === 'object' 
         ? caseData.case.sys_id.value 
         : caseData.case.sys_id;
+      const dischargeStatus = normalizeStatus(extractValue(caseData?.case?.u_discharging_status));
+      const isDischarged = dischargeStatus === 'discharged';
 
       const summaryId = caseData.summary ? 
         (typeof caseData.summary.sys_id === 'object' 
@@ -253,9 +255,6 @@ export default function CaseWorkspace() {
         // ====================
         // PHARMACY ACTIONS
         // ====================
-        case 'markMedsReviewed':
-          result = await service.markMedsReviewed(caseId);
-          break;
         case 'markMedsDispensed':
           result = await service.markMedsDispensed(caseId);
           break;
@@ -282,6 +281,10 @@ export default function CaseWorkspace() {
           }
           break;
         case 'scheduleFollowUp':
+          if (!isDischarged) {
+            alert('Patient must be discharged before scheduling follow-up.');
+            break;
+          }
           const followUpDate = prompt('Enter follow-up date (YYYY-MM-DD):');
           const followUpNotes = prompt('Enter follow-up notes:');
           if (followUpDate) {
@@ -289,6 +292,10 @@ export default function CaseWorkspace() {
           }
           break;
         case 'sendFollowUpReminder':
+          if (!isDischarged) {
+            alert('Patient must be discharged before sending a follow-up reminder.');
+            break;
+          }
           const reminderEmail = prompt('Enter recipient email address:');
           const recipientType = prompt('Enter recipient type (patient/gp):');
           if (reminderEmail && recipientType) {
@@ -571,12 +578,16 @@ export default function CaseWorkspace() {
         {
           label: 'Schedule Follow-Up',
           action: 'scheduleFollowUp',
-          variant: 'info'
+          variant: 'info',
+          disabled: !isDischarged,
+          disabledReason: 'Available after patient is discharged'
         },
         {
           label: 'Send Follow-Up Reminder',
           action: 'sendFollowUpReminder',
-          variant: 'info'
+          variant: 'info',
+          disabled: !isDischarged,
+          disabledReason: 'Available after patient is discharged'
         }
       );
     }
@@ -766,7 +777,8 @@ export default function CaseWorkspace() {
                 key={index}
                 className={`action-button ${action.variant}`}
                 onClick={() => handleRoleAction(action.action)}
-                disabled={actionLoading}
+                disabled={actionLoading || Boolean(action.disabled)}
+                title={action.disabled ? action.disabledReason : ''}
               >
                 {actionLoading ? 'Processing...' : action.label}
               </button>
@@ -845,6 +857,10 @@ export default function CaseWorkspace() {
                     <div className="field">
                       <label>Ward:</label>
                       <span>{extractValue(caseData.case.u_ward) || '-'}</span>
+                    </div>
+                    <div className="field">
+                      <label>Admission Reason:</label>
+                      <span>{extractValue(caseData.case.u_admission_reason) || '-'}</span>
                     </div>
                     <div className="field">
                       <label>Risk Level:</label>
@@ -1031,9 +1047,6 @@ export default function CaseWorkspace() {
                 
                 {userRole === 'pharmacy' && (
                   <div className="pharmacy-action-buttons">
-                    <button onClick={() => handleRoleAction('markMedsReviewed')} className="action-button primary">
-                      Mark Meds Reviewed
-                    </button>
                     <button onClick={() => handleRoleAction('markMedsDispensed')} className="action-button success">
                       Mark Dispensed
                     </button>
