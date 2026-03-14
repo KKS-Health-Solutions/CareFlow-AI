@@ -258,6 +258,10 @@ export default function CaseWorkspace() {
         case 'markMedsDispensed':
           result = await service.markMedsDispensed(caseId);
           break;
+        case 'dispenseMedicationAndCompleteTask':
+          await service.markMedsDispensed(caseId);
+          result = await service.completeTasksForUser(caseId, 'pharmacy');
+          break;
         case 'requestMedClarification':
           const notes = prompt('Please provide clarification details:');
           if (notes) {
@@ -1047,12 +1051,11 @@ export default function CaseWorkspace() {
                 
                 {userRole === 'pharmacy' && (
                   <div className="pharmacy-action-buttons">
-                    <button onClick={() => handleRoleAction('markMedsDispensed')} className="action-button success">
-                      Mark Dispensed
-                    </button>
-                    <button onClick={() => handleRoleAction('requestMedClarification')} className="action-button warning">
-                      Request Clarification
-                    </button>
+                    {!hideMyTasksButton && (
+                      <button onClick={() => handleRoleAction('requestMedClarification')} className="action-button warning">
+                        Request Clarification
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1283,7 +1286,7 @@ export default function CaseWorkspace() {
                 className="action-button success"
                 disabled={actionLoading}
                 onClick={async () => {
-                  await handleRoleAction('completePharmacyTasks');
+                  await handleRoleAction('dispenseMedicationAndCompleteTask');
                   setPharmacyModalOpen(false);
                 }}
               >
