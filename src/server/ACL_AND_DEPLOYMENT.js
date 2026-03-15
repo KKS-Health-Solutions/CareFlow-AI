@@ -183,4 +183,40 @@
  * | src/client/components/CaseWorkspace.css            | UI Page style (bundled React)          |
  * | src/server/ACL_AND_DEPLOYMENT.js (this file)       | Reference only − not deployed          |
  * 
+ * 
+ * 8. DISCHARGE SUMMARY EDIT PERMISSIONS (u_discharge_summary table)
+ * ──────────────────────────────────────────────────────────────────
+ * The React UI now uses an inline "Edit Summary" modal (via updateSummary / Table API PATCH)
+ * to allow doctors to edit the discharge summary in 'draft' and 'ready_for_review' states.
+ * Editing is disabled in the UI once the status reaches 'clinician_approved' or 'signed'.
+ * 
+ * To enforce this server-side, add the following ACL on the u_discharge_summary table:
+ * 
+ * ACL: Restrict direct writes to approved/signed discharge summaries
+ *   Type:              Record
+ *   Operation:         Write
+ *   Table:             u_discharge_summary
+ *   Condition:         (leave empty - handled by script)
+ *   Script:
+ *     ──────────────────────────────────────────────────────
+ *     // Allow write only if:
+ *     //   1. User has admin role, OR
+ *     //   2. Summary status is NOT in a final state (draft / ready_for_review are editable)
+ *     
+ *     var isAdmin = gs.hasRole('x_careflow_ai.careflow_ai_admin');
+ *     
+ *     if (isAdmin) {
+ *         answer = true;
+ *     } else {
+ *         var status = current.getValue('u_summary_status');
+ *         var finalStates = ['clinician_approved', 'signed'];
+ *         answer = finalStates.indexOf(status) === -1;
+ *     }
+ *     ──────────────────────────────────────────────────────
+ *   Requires Role:     (leave empty - script handles it)
+ * 
+ * Additionally, verify that no UI Policy on u_discharge_summary makes all fields
+ * read-only when u_summary_status = 'ready_for_review'. If such a policy exists,
+ * update its condition to only apply when status = 'clinician_approved' or 'signed'.
+ * 
  */

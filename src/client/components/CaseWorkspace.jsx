@@ -24,6 +24,8 @@ export default function CaseWorkspace() {
   const [doctorForm, setDoctorForm] = useState({ u_diagnosis: '', u_hospital_course: '', u_follow_up_instructions: '', u_medication: '' });
   const [pharmacyModalOpen, setPharmacyModalOpen] = useState(false);
   const [nurseModalOpen, setNurseModalOpen] = useState(false);
+  const [editSummaryModalOpen, setEditSummaryModalOpen] = useState(false);
+  const [editSummaryForm, setEditSummaryForm] = useState({ u_clinical_summary: '', u_diagnosis: '', u_hospital_course: '', u_medications_on_discharge: '', u_follow_up_instructions: '' });
 
   const USER_ID_BY_ROLE = {
     nurse: '8f8f3711c3cb72100fa7bd43e40131d9',
@@ -238,6 +240,21 @@ export default function CaseWorkspace() {
             result = await service.requestSummaryReview(summaryId);
           }
           break;
+        case 'openEditSummaryModal':
+          setEditSummaryForm({
+            u_clinical_summary: extractValue(caseData.summary?.u_clinical_summary) || '',
+            u_diagnosis: extractValue(caseData.summary?.u_diagnosis) || '',
+            u_hospital_course: extractValue(caseData.summary?.u_hospital_course) || '',
+            u_medications_on_discharge: extractValue(caseData.summary?.u_medications_on_discharge) || '',
+            u_follow_up_instructions: extractValue(caseData.summary?.u_follow_up_instructions) || ''
+          });
+          setEditSummaryModalOpen(true);
+          break;
+        case 'updateSummaryDetails':
+          if (summaryId) {
+            result = await service.updateSummary(summaryId, params);
+          }
+          break;
         case 'approveSummary':
           if (summaryId) {
             result = await service.approveSummary(summaryId);
@@ -321,8 +338,10 @@ export default function CaseWorkspace() {
         }
         await loadCaseData(caseId);
       }
+      return true;
     } catch (err) {
       alert(`Error performing action: ${err.message}`);
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -444,7 +463,18 @@ export default function CaseWorkspace() {
   const isSummaryReady = () => {
     if (!caseData?.summary) return false;
     const status = extractValue(caseData.summary.u_summary_status);
-    return status === 'ready_for_review' || status === 'clinician_approved';
+    return status === 'draft' || status === 'ready_for_review' || status === 'clinician_approved';
+  };
+
+  /**
+   * Returns true when the discharge summary exists and can still be edited.
+   * Editing is allowed in draft and ready_for_review states.
+   * Once the summary is approved (clinician_approved / signed), editing is locked.
+   */
+  const isSummaryEditable = () => {
+    if (!caseData?.summary) return false;
+    const status = extractValue(caseData.summary.u_summary_status);
+    return status === 'draft' || status === 'ready_for_review';
   };
 
   const openDischargeSummary = () => {
@@ -514,6 +544,13 @@ export default function CaseWorkspace() {
           label: 'Request Summary Review',
           action: 'requestSummaryReview',
           variant: 'secondary'
+        });
+      }
+      if (isSummaryEditable()) {
+        actions.push({
+          label: 'Edit Summary',
+          action: 'openEditSummaryModal',
+          variant: 'primary'
         });
       }
       if (summaryStatus === 'ready_for_review') {
@@ -1324,6 +1361,78 @@ export default function CaseWorkspace() {
                 }}
               >
                 {actionLoading ? 'Processing...' : 'Discussed with Patient'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Summary Modal ─── */}
+      {editSummaryModalOpen && (
+        <div className="task-modal-overlay" onClick={() => setEditSummaryModalOpen(false)}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <div className="task-modal-header">
+              <h3>Edit Discharge Summary</h3>
+              <button className="task-modal-close" onClick={() => setEditSummaryModalOpen(false)}>✕</button>
+            </div>
+            <div className="task-modal-body">
+              <div className="task-modal-field">
+                <label>Clinical Summary</label>
+                <textarea
+                  value={editSummaryForm.u_clinical_summary}
+                  onChange={e => setEditSummaryForm(f => ({ ...f, u_clinical_summary: e.target.value }))}
+                  rows={3}
+                  placeholder="Enter clinical summary..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Diagnosis</label>
+                <textarea
+                  value={editSummaryForm.u_diagnosis}
+                  onChange={e => setEditSummaryForm(f => ({ ...f, u_diagnosis: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter diagnosis..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Hospital Course</label>
+                <textarea
+                  value={editSummaryForm.u_hospital_course}
+                  onChange={e => setEditSummaryForm(f => ({ ...f, u_hospital_course: e.target.value }))}
+                  rows={3}
+                  placeholder="Describe the hospital course..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Medications on Discharge</label>
+                <textarea
+                  value={editSummaryForm.u_medications_on_discharge}
+                  onChange={e => setEditSummaryForm(f => ({ ...f, u_medications_on_discharge: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter medications on discharge..."
+                />
+              </div>
+              <div className="task-modal-field">
+                <label>Follow-Up Instructions</label>
+                <textarea
+                  value={editSummaryForm.u_follow_up_instructions}
+                  onChange={e => setEditSummaryForm(f => ({ ...f, u_follow_up_instructions: e.target.value }))}
+                  rows={2}
+                  placeholder="Enter follow-up instructions..."
+                />
+              </div>
+            </div>
+            <div className="task-modal-footer">
+              <button className="action-button secondary" onClick={() => setEditSummaryModalOpen(false)}>Cancel</button>
+              <button
+                className="action-button success"
+                disabled={actionLoading}
+                onClick={async () => {
+                  const success = await handleRoleAction('updateSummaryDetails', editSummaryForm);
+                  if (success) setEditSummaryModalOpen(false);
+                }}
+              >
+                {actionLoading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
