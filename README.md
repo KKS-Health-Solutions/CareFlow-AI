@@ -78,6 +78,8 @@ if (current.u_discharging_status == 'discharged') {
 2. **Task Assignment Flow:** Creates role-specific tasks when discharge criteria are met  
 3. **Communication Automation:** Handles GP notifications and patient follow-up reminders
 
+<img width="1785" height="1350" alt="image" src="https://github.com/user-attachments/assets/e76cbc74-9db8-4158-9b41-f1c2e0cb46fb" />
+
 **Triggers:**
 - Record updates on discharge cases
 - Status changes requiring approval
