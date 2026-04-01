@@ -8,7 +8,7 @@ The platform solves the common healthcare challenge of fragmented discharge proc
 
 ## Tech Stack
 
-**Platform:** ServiceNow (Vancouver+)  
+**Platform:** ServiceNow (Zurich)  
 **Frontend:** Now Experience UI Framework with React components  
 **Backend:** ServiceNow Glide APIs and server-side JavaScript  
 **Automation:** Flow Designer workflows  
