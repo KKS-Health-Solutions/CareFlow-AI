@@ -21,6 +21,27 @@ export default function PharmacyDashboard({ onSwitchRole }) {
     loadViewData(currentView);
   }, [currentView]);
 
+  useEffect(() => {
+    if (currentView === 'my-tasks') return;
+
+    let isRefreshing = false;
+
+    const interval = setInterval(async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        const data = await service.getPharmacyTasks();
+        setPharmacyData(prev => ({ ...prev, stats: data.stats }));
+      } catch (err) {
+        console.error('Failed to refresh pharmacy stats:', err);
+      } finally {
+        isRefreshing = false;
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentView]);
+
   const loadViewData = async (view) => {
     try {
       setLoading(true);

@@ -397,36 +397,35 @@ export class DischargeCaseService {
   async getDashboardStats() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      const dischargesTodayResponse = await fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_discharge_dateON${today}&sysparm_count=true`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
-      
-      const pendingSummariesResponse = await fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=draft^ORu_summary_status=ready_for_review&sysparm_count=true`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
-
-      const awaitingApprovalResponse = await fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=ready_for_review&sysparm_count=true`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
-
-      const failedCommsResponse = await fetch(`/api/now/table/${this.commLogTable}?sysparm_query=u_delivery_status=failed&sysparm_count=true`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
-
       const weekFromToday = new Date();
       weekFromToday.setDate(weekFromToday.getDate() + 7);
-      const followupsDueResponse = await fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_due_dateBETWEEN${today}@${weekFromToday.toISOString().split('T')[0]}&sysparm_count=true`, {
-        headers: { "Accept": "application/json", "X-UserToken": window.g_ck }
-      });
+      const weekStr = weekFromToday.toISOString().split('T')[0];
+
+      const headers = { "Accept": "application/json", "X-UserToken": window.g_ck };
+
+      const [
+        dischargesTodayResponse,
+        pendingSummariesResponse,
+        awaitingApprovalResponse,
+        failedCommsResponse,
+        followupsDueResponse,
+        pharmacyActionsResponse
+      ] = await Promise.all([
+        fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_discharge_dateON${today}&sysparm_count=true`, { headers }),
+        fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=draft^ORu_summary_status=ready_for_review&sysparm_count=true`, { headers }),
+        fetch(`/api/now/table/${this.dischargeSummaryTable}?sysparm_query=u_summary_status=ready_for_review&sysparm_count=true`, { headers }),
+        fetch(`/api/now/table/${this.commLogTable}?sysparm_query=u_delivery_status=failed&sysparm_count=true`, { headers }),
+        fetch(`/api/now/table/${this.dischargeCaseTable}?sysparm_query=u_due_dateBETWEEN${today}@${weekStr}&sysparm_count=true`, { headers }),
+        fetch(`/api/now/table/${this.dischargeTaskTable}?sysparm_query=short_descriptionLIKEpharmacy^ORshort_descriptionLIKEmedication^ORshort_descriptionLIKEreconciliation^state=1&sysparm_count=true`, { headers })
+      ]);
 
       return {
-        dischargesToday: parseInt((await dischargesTodayResponse.json())?.result?.stats?.count || 0),
-        pendingSummaries: parseInt((await pendingSummariesResponse.json())?.result?.stats?.count || 0),
-        awaitingApproval: parseInt((await awaitingApprovalResponse.json())?.result?.stats?.count || 0),
-        pharmacyActions: 0, // Placeholder - would need pharmacy-specific table
-        followupsDue: parseInt((await followupsDueResponse.json())?.result?.stats?.count || 0),
-        failedComms: parseInt((await failedCommsResponse.json())?.result?.stats?.count || 0)
+        dischargesToday: parseInt(dischargesTodayResponse.headers.get('X-Total-Count') || '0'),
+        pendingSummaries: parseInt(pendingSummariesResponse.headers.get('X-Total-Count') || '0'),
+        awaitingApproval: parseInt(awaitingApprovalResponse.headers.get('X-Total-Count') || '0'),
+        pharmacyActions: parseInt(pharmacyActionsResponse.headers.get('X-Total-Count') || '0'),
+        followupsDue: parseInt(followupsDueResponse.headers.get('X-Total-Count') || '0'),
+        failedComms: parseInt(failedCommsResponse.headers.get('X-Total-Count') || '0')
       };
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
